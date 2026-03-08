@@ -65,267 +65,279 @@
         <h2>Game Situation</h2>
         <form id="analysis-form">
 
-            <!-- Yard Line -->
-            <div class="form-group">
-                <label for="yardline">Yard Line</label>
-                <div class="slider-container">
-                    <input type="range" id="yardline" min="1" max="99" value="50" step="1">
-                    <div class="slider-labels">
-                        <span>Opp EZ</span>
-                        <span>Opp 25</span>
-                        <span>50</span>
-                        <span>Own 25</span>
-                        <span>Own EZ</span>
+            <!-- Tab bar -->
+            <div class="settings-tabs">
+                <button type="button" class="settings-tab active" data-tab="standard">Standard</button>
+                <button type="button" class="settings-tab" data-tab="advanced">Advanced</button>
+            </div>
+
+            <!-- Standard tab -->
+            <div class="tab-content" id="tab-standard">
+
+                <!-- Yard Line -->
+                <div class="form-group">
+                    <label for="yardline">Yard Line</label>
+                    <div class="slider-container">
+                        <input type="range" id="yardline" min="1" max="99" value="50" step="1">
+                        <div class="slider-labels">
+                            <span>Opp EZ</span>
+                            <span>Opp 25</span>
+                            <span>50</span>
+                            <span>Own 25</span>
+                            <span>Own EZ</span>
+                        </div>
+                    </div>
+                    <div class="yard-display" id="yard-display">Midfield (50)</div>
+
+                    <!-- Field Visualization -->
+                    <div class="field-viz-inline">
+                        <div class="field-container">
+                            <div class="field-endzone-left">OPP</div>
+                            <div class="field-endzone-right">OWN</div>
+                            <div class="field-marker" id="field-marker" style="left:50%"></div>
+                        </div>
+                        <div class="field-labels">
+                            <span>EZ</span>
+                            <span>25</span>
+                            <span>50</span>
+                            <span>25</span>
+                            <span>EZ</span>
+                        </div>
                     </div>
                 </div>
-                <div class="yard-display" id="yard-display">Midfield (50)</div>
 
-                <!-- Field Visualization (directly under yard line) -->
-                <div class="field-viz-inline">
-                    <div class="field-container">
-                        <div class="field-endzone-left">OPP</div>
-                        <div class="field-endzone-right">OWN</div>
-                        <div class="field-marker" id="field-marker" style="left:50%"></div>
-                    </div>
-                    <div class="field-labels">
-                        <span>EZ</span>
-                        <span>25</span>
-                        <span>50</span>
-                        <span>25</span>
-                        <span>EZ</span>
-                    </div>
+                <!-- Yards to Go -->
+                <div class="form-group">
+                    <label for="yards-to-go">Yards to Go</label>
+                    <select id="yards-to-go">
+                        <option value="1">1 yard</option>
+                        <option value="2">2 yards</option>
+                        <option value="3">3 yards</option>
+                        <option value="4">4 yards</option>
+                        <option value="5" selected>5 yards</option>
+                        <option value="6">6 yards</option>
+                        <option value="7">7 yards</option>
+                        <option value="8">8 yards</option>
+                        <option value="9">9 yards</option>
+                        <option value="10">10 yards</option>
+                        <option value="11">11 yards</option>
+                        <option value="12">12 yards</option>
+                        <option value="13">13 yards</option>
+                        <option value="14">14 yards</option>
+                        <option value="15">15 yards</option>
+                    </select>
                 </div>
-            </div>
 
-            <!-- Yards to Go -->
-            <div class="form-group">
-                <label for="yards-to-go">Yards to Go</label>
-                <select id="yards-to-go">
-                    <option value="1">1 yard</option>
-                    <option value="2">2 yards</option>
-                    <option value="3">3 yards</option>
-                    <option value="4">4 yards</option>
-                    <option value="5" selected>5 yards</option>
-                    <option value="6">6 yards</option>
-                    <option value="7">7 yards</option>
-                    <option value="8">8 yards</option>
-                    <option value="9">9 yards</option>
-                    <option value="10">10 yards</option>
-                    <option value="11">11 yards</option>
-                    <option value="12">12 yards</option>
-                    <option value="13">13 yards</option>
-                    <option value="14">14 yards</option>
-                    <option value="15">15 yards</option>
-                </select>
-            </div>
-
-            <!-- Score Differential -->
-            <div class="form-group">
-                <label for="score-diff">Score Differential</label>
-                <input type="number" id="score-diff" value="0" min="-21" max="21" step="1">
-                <p class="hint">Your score minus opponent's score</p>
-            </div>
-
-            <!-- OT Possession Number -->
-            <div class="form-group">
-                <label>OT Possession</label>
-                <div class="radio-group">
-                    <div class="radio-btn">
-                        <input type="radio" name="possession" id="poss-1" value="1" checked>
-                        <label for="poss-1">1st Possession</label>
-                    </div>
-                    <div class="radio-btn">
-                        <input type="radio" name="possession" id="poss-2" value="2">
-                        <label for="poss-2">2nd Possession</label>
-                    </div>
-                    <div class="radio-btn">
-                        <input type="radio" name="possession" id="poss-3" value="3">
-                        <label for="poss-3">Sudden Death (3rd+)</label>
-                    </div>
+                <!-- Score Differential -->
+                <div class="form-group">
+                    <label for="score-diff">Score Differential</label>
+                    <input type="number" id="score-diff" value="0" min="-21" max="21" step="1">
+                    <p class="hint">Your score minus opponent's score</p>
                 </div>
-            </div>
 
-            <!-- Opponent Result (conditional) -->
-            <div class="opponent-result" id="opponent-result-group">
-                <div class="form-group" style="margin-bottom:0">
-                    <label>Opponent's Result</label>
+                <!-- OT Possession Number -->
+                <div class="form-group">
+                    <label>OT Possession</label>
                     <div class="radio-group">
                         <div class="radio-btn">
-                            <input type="radio" name="opp-result" id="opp-td" value="td">
-                            <label for="opp-td">Scored TD</label>
+                            <input type="radio" name="possession" id="poss-1" value="1" checked>
+                            <label for="poss-1">1st Possession</label>
                         </div>
                         <div class="radio-btn">
-                            <input type="radio" name="opp-result" id="opp-fg" value="fg" checked>
-                            <label for="opp-fg">Scored FG</label>
+                            <input type="radio" name="possession" id="poss-2" value="2">
+                            <label for="poss-2">2nd Possession</label>
                         </div>
                         <div class="radio-btn">
-                            <input type="radio" name="opp-result" id="opp-none" value="no_score">
-                            <label for="opp-none">Didn't Score</label>
+                            <input type="radio" name="possession" id="poss-3" value="3">
+                            <label for="poss-3">Sudden Death (3rd+)</label>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Game Type -->
-            <div class="form-group">
-                <label>Game Type</label>
-                <div class="radio-group">
-                    <div class="radio-btn">
-                        <input type="radio" name="game-type" id="game-reg" value="regular" checked>
-                        <label for="game-reg">Regular Season</label>
-                    </div>
-                    <div class="radio-btn">
-                        <input type="radio" name="game-type" id="game-playoffs" value="playoffs">
-                        <label for="game-playoffs">Playoffs</label>
+                <!-- Opponent Result (conditional) -->
+                <div class="opponent-result" id="opponent-result-group">
+                    <div class="form-group" style="margin-bottom:0">
+                        <label>Opponent's Result</label>
+                        <div class="radio-group">
+                            <div class="radio-btn">
+                                <input type="radio" name="opp-result" id="opp-td" value="td">
+                                <label for="opp-td">Scored TD</label>
+                            </div>
+                            <div class="radio-btn">
+                                <input type="radio" name="opp-result" id="opp-fg" value="fg" checked>
+                                <label for="opp-fg">Scored FG</label>
+                            </div>
+                            <div class="radio-btn">
+                                <input type="radio" name="opp-result" id="opp-none" value="no_score">
+                                <label for="opp-none">Didn't Score</label>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Advanced Settings -->
-            <div class="advanced-toggle" id="advanced-toggle">
-                <span class="arrow">&#9654;</span> Advanced Settings
-            </div>
-            <div class="advanced-settings" id="advanced-settings">
+                <!-- Game Type -->
+                <div class="form-group">
+                    <label>Game Type</label>
+                    <div class="radio-group">
+                        <div class="radio-btn">
+                            <input type="radio" name="game-type" id="game-reg" value="regular" checked>
+                            <label for="game-reg">Regular Season</label>
+                        </div>
+                        <div class="radio-btn">
+                            <input type="radio" name="game-type" id="game-playoffs" value="playoffs">
+                            <label for="game-playoffs">Playoffs</label>
+                        </div>
+                    </div>
+                </div>
+
+            </div> <!-- end tab-standard -->
+
+            <!-- Advanced tab -->
+            <div class="tab-content" id="tab-advanced" style="display:none">
                 <p class="advanced-note">Leave these at defaults for league-average performance. Override to model a specific team's strengths.</p>
 
-                <div class="advanced-section-label">Punter Quality</div>
-                <div class="form-group">
-                    <label for="adv-punt-dist">Avg Punt Distance <span class="label-detail">(6-game rolling avg, yards)</span></label>
-                    <input type="number" id="adv-punt-dist" value="45.9" step="0.1" min="30" max="60">
-                    <p class="hint">League avg: 45.9 · Elite: 50+ · Below avg: &lt;42</p>
-                </div>
-                <div class="form-group">
-                    <label for="adv-inside20">Inside-20 Rate <span class="label-detail">(6-game rolling avg)</span></label>
-                    <input type="number" id="adv-inside20" value="0.44" step="0.01" min="0" max="1">
-                    <p class="hint">League avg: 0.44 · Elite: 0.55+ · Below avg: &lt;0.35</p>
-                </div>
+                <div class="adv-grid">
+                    <div class="adv-col">
+                        <div class="advanced-section-label">Offensive Quality</div>
+                        <div class="form-group">
+                            <label for="adv-off-epa">Off. EPA/Play <span class="label-detail">(15-game rolling)</span></label>
+                            <input type="number" id="adv-off-epa" value="0.00" step="0.01" min="-0.3" max="0.3">
+                            <p class="hint">Avg: 0.00 · Top: +0.15 · Bottom: −0.10</p>
+                        </div>
+                        <div class="form-group">
+                            <label for="adv-off-success-rate">Off. Success Rate <span class="label-detail">(15-game rolling)</span></label>
+                            <input type="number" id="adv-off-success-rate" value="0.42" step="0.01" min="0.20" max="0.65">
+                            <p class="hint">Avg: 0.42 · Top: 0.50+ · Bottom: &lt;0.35</p>
+                        </div>
+                        <div class="form-group">
+                            <label for="adv-off-ppg">Off. Points/Game <span class="label-detail">(15-game rolling)</span></label>
+                            <input type="number" id="adv-off-ppg" value="23.0" step="0.5" min="10" max="40">
+                            <p class="hint">Avg: 23.0 · Top: 28+ · Bottom: &lt;17</p>
+                        </div>
 
-                <div class="advanced-section-label">Offensive Quality</div>
-                <div class="form-group">
-                    <label for="adv-off-epa">Offensive EPA per Play <span class="label-detail">(15-game rolling avg)</span></label>
-                    <input type="number" id="adv-off-epa" value="0.00" step="0.01" min="-0.3" max="0.3">
-                    <p class="hint">League avg: 0.00 · Top offense: +0.15 · Bottom: −0.10</p>
-                </div>
-                <div class="form-group">
-                    <label for="adv-off-success-rate">Offensive Success Rate <span class="label-detail">(15-game rolling avg)</span></label>
-                    <input type="number" id="adv-off-success-rate" value="0.42" step="0.01" min="0.20" max="0.65">
-                    <p class="hint">League avg: 0.42 · Top offense: 0.50+ · Bottom: &lt;0.35</p>
-                </div>
-                <div class="form-group">
-                    <label for="adv-off-ppg">Offensive Points per Game <span class="label-detail">(15-game rolling avg)</span></label>
-                    <input type="number" id="adv-off-ppg" value="23.0" step="0.5" min="10" max="40">
-                    <p class="hint">League avg: 23.0 · Top offense: 28+ · Bottom: &lt;17</p>
-                </div>
+                        <div class="advanced-section-label">Opposing Defense Quality</div>
+                        <div class="form-group">
+                            <label for="adv-def-epa">Def. EPA/Play Allowed <span class="label-detail">(15-game rolling)</span></label>
+                            <input type="number" id="adv-def-epa" value="0.00" step="0.01" min="-0.3" max="0.3">
+                            <p class="hint">Avg: 0.00 · Weak: +0.10 · Elite: −0.10</p>
+                        </div>
+                        <div class="form-group">
+                            <label for="adv-def-success-rate">Def. Success Rate Allowed <span class="label-detail">(15-game rolling)</span></label>
+                            <input type="number" id="adv-def-success-rate" value="0.42" step="0.01" min="0.20" max="0.65">
+                            <p class="hint">Avg: 0.42 · Weak: 0.48+ · Elite: &lt;0.36</p>
+                        </div>
+                        <div class="form-group">
+                            <label for="adv-def-ppg">Def. Points/Game Allowed <span class="label-detail">(15-game rolling)</span></label>
+                            <input type="number" id="adv-def-ppg" value="23.0" step="0.5" min="10" max="40">
+                            <p class="hint">Avg: 23.0 · Weak: 27+ · Elite: &lt;18</p>
+                        </div>
 
-                <div class="advanced-section-label">Opposing Defense Quality</div>
-                <div class="form-group">
-                    <label for="adv-def-epa">Defensive EPA per Play Allowed <span class="label-detail">(15-game rolling avg)</span></label>
-                    <input type="number" id="adv-def-epa" value="0.00" step="0.01" min="-0.3" max="0.3">
-                    <p class="hint">League avg: 0.00 · Weak defense (easier): +0.10 · Elite defense: −0.10</p>
-                </div>
-                <div class="form-group">
-                    <label for="adv-def-success-rate">Defensive Success Rate Allowed <span class="label-detail">(15-game rolling avg)</span></label>
-                    <input type="number" id="adv-def-success-rate" value="0.42" step="0.01" min="0.20" max="0.65">
-                    <p class="hint">League avg: 0.42 · Weak defense (easier): 0.48+ · Elite: &lt;0.36</p>
-                </div>
-                <div class="form-group">
-                    <label for="adv-def-ppg">Defensive Points per Game Allowed <span class="label-detail">(15-game rolling avg)</span></label>
-                    <input type="number" id="adv-def-ppg" value="23.0" step="0.5" min="10" max="40">
-                    <p class="hint">League avg: 23.0 · Weak defense (easier): 27+ · Elite: &lt;18</p>
-                </div>
+                        <div class="advanced-section-label">Special Teams</div>
+                        <div class="form-group">
+                            <label for="adv-punt-dist">Avg Punt Distance <span class="label-detail">(6-game rolling, yds)</span></label>
+                            <input type="number" id="adv-punt-dist" value="45.9" step="0.1" min="30" max="60">
+                            <p class="hint">Avg: 45.9 · Elite: 50+ · Below: &lt;42</p>
+                        </div>
+                        <div class="form-group">
+                            <label for="adv-inside20">Inside-20 Rate <span class="label-detail">(6-game rolling)</span></label>
+                            <input type="number" id="adv-inside20" value="0.44" step="0.01" min="0" max="1">
+                            <p class="hint">Avg: 0.44 · Elite: 0.55+ · Below: &lt;0.35</p>
+                        </div>
+                        <div class="form-group">
+                            <label for="adv-fg-rate">Kicker FG Make Rate <span class="label-detail">(6-game rolling)</span></label>
+                            <input type="number" id="adv-fg-rate" value="" step="0.01" min="0" max="1" placeholder="league avg by distance">
+                            <p class="hint">Blank = league avg · Elite: 0.90+ · Below: &lt;0.75</p>
+                        </div>
+                    </div>
 
-                <div class="advanced-section-label">Kicker Quality</div>
-                <div class="form-group">
-                    <label for="adv-fg-rate">Kicker FG Make Rate <span class="label-detail">(6-game rolling avg)</span></label>
-                    <input type="number" id="adv-fg-rate" value="" step="0.01" min="0" max="1" placeholder="league avg by distance">
-                    <p class="hint">Leave blank for league avg · Elite: 0.90+ · Below avg: &lt;0.75</p>
-                </div>
+                    <div class="adv-col">
+                        <div class="advanced-section-label">Game Context</div>
+                        <div class="form-group">
+                            <label for="adv-home">Home / Away</label>
+                            <select id="adv-home">
+                                <option value="neutral" selected>Neutral (default)</option>
+                                <option value="home">Home</option>
+                                <option value="away">Away</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="adv-spread">Team Spread <span class="label-detail">(pregame line)</span></label>
+                            <input type="number" id="adv-spread" value="0" step="0.5" min="-17" max="17">
+                            <p class="hint">Negative = favored (e.g. −7). Zero = pick'em.</p>
+                        </div>
+                        <div class="form-group">
+                            <label for="adv-off-timeouts">Offense Timeouts Remaining</label>
+                            <select id="adv-off-timeouts">
+                                <option value="0">0</option>
+                                <option value="1">1</option>
+                                <option value="2" selected>2</option>
+                                <option value="3">3</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="adv-def-timeouts">Defense Timeouts Remaining</label>
+                            <select id="adv-def-timeouts">
+                                <option value="0">0</option>
+                                <option value="1">1</option>
+                                <option value="2" selected>2</option>
+                                <option value="3">3</option>
+                            </select>
+                        </div>
 
-                <div class="advanced-section-label">Play Type</div>
-                <div class="form-group">
-                    <label for="adv-shotgun">
-                        <input type="checkbox" id="adv-shotgun" checked> Shotgun Formation
-                    </label>
-                    <p class="hint">Most 4th-down attempts use shotgun</p>
-                </div>
-                <div class="form-group">
-                    <label for="adv-no-huddle">
-                        <input type="checkbox" id="adv-no-huddle"> No Huddle
-                    </label>
-                    <p class="hint">Check if the offense is running a hurry-up / no-huddle</p>
-                </div>
+                        <div class="advanced-section-label">Play Type</div>
+                        <div class="form-group">
+                            <label for="adv-shotgun">
+                                <input type="checkbox" id="adv-shotgun" checked> Shotgun Formation
+                            </label>
+                            <p class="hint">Most 4th-down attempts use shotgun</p>
+                        </div>
+                        <div class="form-group">
+                            <label for="adv-no-huddle">
+                                <input type="checkbox" id="adv-no-huddle"> No Huddle
+                            </label>
+                            <p class="hint">Hurry-up / no-huddle offense</p>
+                        </div>
 
-                <div class="advanced-section-label">Game Context</div>
-                <div class="form-group">
-                    <label for="adv-home">Home / Away</label>
-                    <select id="adv-home">
-                        <option value="neutral" selected>Neutral (default)</option>
-                        <option value="home">Home</option>
-                        <option value="away">Away</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="adv-spread">Team Spread <span class="label-detail">(pregame line)</span></label>
-                    <input type="number" id="adv-spread" value="0" step="0.5" min="-17" max="17">
-                    <p class="hint">Negative = favored (e.g. −7). Zero = pick'em.</p>
-                </div>
-                <div class="form-group">
-                    <label for="adv-off-timeouts">Offense Timeouts Remaining</label>
-                    <select id="adv-off-timeouts">
-                        <option value="0">0</option>
-                        <option value="1">1</option>
-                        <option value="2" selected>2</option>
-                        <option value="3">3</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="adv-def-timeouts">Defense Timeouts Remaining</label>
-                    <select id="adv-def-timeouts">
-                        <option value="0">0</option>
-                        <option value="1">1</option>
-                        <option value="2" selected>2</option>
-                        <option value="3">3</option>
-                    </select>
-                </div>
-
-                <div class="advanced-section-label">Weather &amp; Venue</div>
-                <div class="form-group">
-                    <label for="adv-dome">
-                        <input type="checkbox" id="adv-dome"> Dome / Closed Roof
-                    </label>
-                    <p class="hint">Overrides wind to 0 and temp to 72°F</p>
-                </div>
-                <div class="form-group">
-                    <label for="adv-wind">Wind Speed <span class="label-detail">(MPH)</span></label>
-                    <input type="number" id="adv-wind" value="8" step="1" min="0" max="50">
-                    <p class="hint">Calm: 0-5 · Moderate: 10-15 · High: 20+</p>
-                </div>
-                <div class="form-group">
-                    <label for="adv-wind-gust">Wind Gust <span class="label-detail">(peak MPH, optional)</span></label>
-                    <input type="number" id="adv-wind-gust" value="" step="1" min="0" max="60" placeholder="defaults to wind speed">
-                    <p class="hint">Leave blank to default to wind speed</p>
-                </div>
-                <div class="form-group">
-                    <label for="adv-temp">Temperature <span class="label-detail">(°F)</span></label>
-                    <input type="number" id="adv-temp" value="65" step="1" min="-10" max="120">
-                    <p class="hint">Cold: &lt;32 · Mild: 50-70 · Hot: 85+</p>
-                </div>
-                <div class="form-group">
-                    <label for="adv-precip">
-                        <input type="checkbox" id="adv-precip"> Precipitation
-                    </label>
-                    <p class="hint">Rain, snow, sleet, or fog</p>
-                </div>
-                <div class="form-group">
-                    <label for="adv-surface">
-                        <input type="checkbox" id="adv-surface" checked> Grass Surface
-                    </label>
-                    <p class="hint">Uncheck for artificial turf</p>
-                </div>
-                <div class="form-group">
-                    <label for="adv-altitude">Altitude <span class="label-detail">(feet)</span></label>
-                    <input type="number" id="adv-altitude" value="0" step="100" min="0" max="6000">
-                    <p class="hint">Sea level: 0 · Denver: 5,280 · Mexico City: 7,350</p>
+                        <div class="advanced-section-label">Weather &amp; Venue</div>
+                        <div class="form-group">
+                            <label for="adv-dome">
+                                <input type="checkbox" id="adv-dome"> Dome / Closed Roof
+                            </label>
+                            <p class="hint">Overrides wind to 0 and temp to 72°F</p>
+                        </div>
+                        <div class="form-group">
+                            <label for="adv-wind">Wind Speed <span class="label-detail">(MPH)</span></label>
+                            <input type="number" id="adv-wind" value="8" step="1" min="0" max="50">
+                            <p class="hint">Calm: 0-5 · Moderate: 10-15 · High: 20+</p>
+                        </div>
+                        <div class="form-group">
+                            <label for="adv-wind-gust">Wind Gust <span class="label-detail">(peak MPH, optional)</span></label>
+                            <input type="number" id="adv-wind-gust" value="" step="1" min="0" max="60" placeholder="defaults to wind speed">
+                            <p class="hint">Blank = defaults to wind speed</p>
+                        </div>
+                        <div class="form-group">
+                            <label for="adv-temp">Temperature <span class="label-detail">(°F)</span></label>
+                            <input type="number" id="adv-temp" value="65" step="1" min="-10" max="120">
+                            <p class="hint">Cold: &lt;32 · Mild: 50-70 · Hot: 85+</p>
+                        </div>
+                        <div class="form-group">
+                            <label for="adv-precip">
+                                <input type="checkbox" id="adv-precip"> Precipitation
+                            </label>
+                            <p class="hint">Rain, snow, sleet, or fog</p>
+                        </div>
+                        <div class="form-group">
+                            <label for="adv-surface">
+                                <input type="checkbox" id="adv-surface" checked> Grass Surface
+                            </label>
+                            <p class="hint">Uncheck for artificial turf</p>
+                        </div>
+                        <div class="form-group">
+                            <label for="adv-altitude">Altitude <span class="label-detail">(feet)</span></label>
+                            <input type="number" id="adv-altitude" value="0" step="100" min="0" max="6000">
+                            <p class="hint">Sea level: 0 · Denver: 5,280 · Mexico City: 7,350</p>
+                        </div>
+                    </div>
                 </div>
             </div>
 

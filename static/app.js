@@ -9,8 +9,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const fieldMarker = document.getElementById("field-marker");
     const possRadios = document.querySelectorAll('input[name="possession"]');
     const oppResult = document.getElementById("opponent-result-group");
-    const advToggle = document.getElementById("advanced-toggle");
-    const advSettings = document.getElementById("advanced-settings");
+    const settingsTabs = document.querySelectorAll(".settings-tab");
+    const tabStandard = document.getElementById("tab-standard");
+    const tabAdvanced = document.getElementById("tab-advanced");
     const analyzeBtn = document.getElementById("analyze-btn");
     const loadingEl = document.getElementById("loading");
     const resultsContent = document.getElementById("results-content");
@@ -48,10 +49,15 @@ document.addEventListener("DOMContentLoaded", () => {
     possRadios.forEach((r) => r.addEventListener("change", checkPossession));
     checkPossession();
 
-    // --- Advanced settings ---
-    advToggle.addEventListener("click", () => {
-        advToggle.classList.toggle("open");
-        advSettings.classList.toggle("visible");
+    // --- Settings tabs ---
+    settingsTabs.forEach(tab => {
+        tab.addEventListener("click", () => {
+            settingsTabs.forEach(t => t.classList.remove("active"));
+            tab.classList.add("active");
+            const target = tab.dataset.tab;
+            tabStandard.style.display = target === "standard" ? "block" : "none";
+            tabAdvanced.style.display = target === "advanced" ? "block" : "none";
+        });
     });
 
     // --- Transparency toggle ---
