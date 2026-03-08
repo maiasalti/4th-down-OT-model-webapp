@@ -501,7 +501,7 @@ select option {
 }
 
 .advanced-settings.visible {
-    max-height: 600px;
+    max-height: 3000px;
     opacity: 1;
 }
 
