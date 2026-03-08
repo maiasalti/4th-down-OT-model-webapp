@@ -13,4 +13,4 @@ COPY . .
 EXPOSE 10000
 
 # Run with gunicorn
-CMD ["gunicorn", "server:app", "--bind", "0.0.0.0:10000"]
+CMD ["gunicorn", "server:app", "--bind", "0.0.0.0:10000", "--timeout", "180", "--workers", "1"]

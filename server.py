@@ -13,18 +13,14 @@ from flask import Flask, render_template, request, jsonify
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from decision_engine import analyze
-from models import preload_models
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
-# Preload all 4 ML models at startup
-with app.app_context():
-    logger.info("Preloading ML models...")
-    preload_models()
-    logger.info("All models loaded and ready.")
+# Models are lazy-loaded on first /api/analyze request to keep startup fast.
+# This lets Render's health check pass immediately on deploy.
 
 
 @app.route("/")
