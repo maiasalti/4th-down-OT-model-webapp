@@ -42,12 +42,12 @@
             </div>
             <div class="hero-stat-divider"></div>
             <div class="hero-stat">
-                <div class="hero-stat-value">570K+</div>
+                <div class="hero-stat-value">350K+</div>
                 <div class="hero-stat-label">NFL plays analyzed</div>
             </div>
             <div class="hero-stat-divider"></div>
             <div class="hero-stat">
-                <div class="hero-stat-value">2010-24</div>
+                <div class="hero-stat-value">2016-24</div>
                 <div class="hero-stat-label">Seasons of data</div>
             </div>
         </div>
@@ -349,8 +349,8 @@
                 <div class="submodel-card">
                     <div class="submodel-icon">&#128200;</div>
                     <h4>Win Probability</h4>
-                    <p>Estimates the probability of winning from any game state using an XGBoost Classifier with isotonic calibration. Trained on 570,000+ regulation plays from 2010-2024. OT plays excluded to avoid rule-change contamination.</p>
-                    <div class="submodel-stat">570K+ training plays</div>
+                    <p>Estimates the probability of winning from any game state using an XGBoost Classifier with isotonic calibration. Trained on 350,000+ regulation plays from 2016-2024. OT plays excluded to avoid rule-change contamination.</p>
+                    <div class="submodel-stat">350K+ training plays</div>
                 </div>
             </div>
         </div>
@@ -406,7 +406,7 @@
         <!-- Data & Limitations -->
         <div class="about-block">
             <h3>Data & Limitations</h3>
-            <p>All models are trained on NFL play-by-play data from the <strong>nfl_data_py</strong> package, spanning 2010-2024 (570,000+ plays). Rolling statistics use a 6-game window for special teams and 15-game window for offense/defense, shifted by 1 game to prevent data leakage.</p>
+            <p>All models are trained on NFL play-by-play data from the <strong>nfl_data_py</strong> package, spanning 2016-2024 (350,000+ plays). Rolling statistics use a 6-game window for special teams and 15-game window for offense/defense, shifted by 1 game to prevent data leakage.</p>
             <p><strong>Known limitations:</strong> The punt model tracks team-level stats rather than individual punters. The win probability model is trained on regulation plays only. Weather data may be incomplete for some older games. Rolling averages don't reset at season boundaries.</p>
         </div>
 
