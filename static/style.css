@@ -769,6 +769,271 @@ select option {
 }
 
 /* ================================================================
+   Win Probability Comparison Bars
+   ================================================================ */
+.wp-comparison {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1.25rem 1.5rem;
+    margin-top: 0.75rem;
+}
+
+.wp-compare-title {
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 1rem;
+}
+
+.wp-bar-row {
+    display: grid;
+    grid-template-columns: 80px 1fr 60px;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.6rem;
+}
+
+.wp-bar-row:last-child {
+    margin-bottom: 0;
+}
+
+.wp-bar-row.unavailable {
+    opacity: 0.25;
+}
+
+.wp-bar-label {
+    font-size: 0.68rem;
+    color: var(--muted);
+    font-weight: 500;
+}
+
+.wp-bar-track {
+    height: 8px;
+    background: var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.wp-bar-fill {
+    height: 100%;
+    background: #333;
+    border-radius: 4px;
+    transition: width 0.6s ease;
+}
+
+.wp-bar-fill.recommended {
+    background: var(--success);
+}
+
+.wp-bar-value {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--muted);
+    text-align: right;
+}
+
+.wp-bar-value.recommended {
+    color: var(--success);
+}
+
+/* ================================================================
+   Transparency / Simulation Breakdown
+   ================================================================ */
+.transparency-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 0.7rem;
+    margin-top: 1rem;
+    padding: 0.6rem 0;
+    user-select: none;
+    transition: color 0.15s;
+}
+
+.transparency-toggle:hover {
+    color: var(--accent-dim);
+}
+
+.transparency-toggle .arrow {
+    transition: transform 0.2s;
+    font-size: 0.55rem;
+}
+
+.transparency-toggle.open .arrow {
+    transform: rotate(90deg);
+}
+
+.transparency-panel {
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    transition: max-height 0.4s ease, opacity 0.3s ease;
+}
+
+.transparency-panel.visible {
+    max-height: 2000px;
+    opacity: 1;
+}
+
+.transparency-header {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+}
+
+/* Scenario grid */
+.scenario-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+}
+
+.scenario-item {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.6rem 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.scenario-key {
+    font-size: 0.55rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.scenario-val {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text);
+}
+
+/* Step-by-step for each option */
+.step-option {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 0.6rem;
+}
+
+.step-option.is-rec {
+    border-color: rgba(0, 255, 136, 0.2);
+}
+
+.step-option.unavailable {
+    opacity: 0.35;
+}
+
+.step-header {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.step-icon {
+    font-size: 1rem;
+    opacity: 0.5;
+}
+
+.step-option.is-rec .step-icon {
+    opacity: 1;
+}
+
+.step-title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text);
+    flex: 1;
+}
+
+.step-wp {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--muted);
+}
+
+.step-wp.best {
+    color: var(--success);
+}
+
+.step-logic {
+    padding-left: 0.25rem;
+}
+
+.step-line {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    font-size: 0.68rem;
+    color: var(--muted);
+    line-height: 1.5;
+    margin-bottom: 0.4rem;
+}
+
+.step-line strong {
+    color: var(--accent-dim);
+}
+
+.step-num {
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    background: var(--border);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.55rem;
+    font-weight: 700;
+    color: var(--muted);
+    margin-top: 1px;
+}
+
+.step-result {
+    margin-top: 0.5rem;
+    padding-top: 0.4rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.68rem;
+    color: var(--text);
+}
+
+.step-result strong {
+    color: var(--success);
+}
+
+.step-option.is-rec .step-result strong {
+    color: var(--success);
+}
+
+.transparency-footer {
+    margin-top: 0.75rem;
+    font-size: 0.6rem;
+    color: var(--muted);
+    opacity: 0.6;
+    line-height: 1.6;
+    padding: 0.75rem;
+    border-top: 1px solid var(--border);
+}
+
+/* ================================================================
    About the Model Section
    ================================================================ */
 .about-section {
@@ -993,6 +1258,10 @@ select option {
 
     .submodel-grid {
         grid-template-columns: 1fr;
+    }
+
+    .scenario-grid {
+        grid-template-columns: repeat(2, 1fr);
     }
 }
 
