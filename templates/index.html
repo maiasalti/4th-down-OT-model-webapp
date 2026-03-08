@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NFL OT 4th Down Decision Engine</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<!-- Header -->
+<header class="header">
+    <h1>NFL OT <span>4th Down</span> Decision Engine</h1>
+    <p class="subtitle">UCLA Bruin Sports Analytics</p>
+</header>
+
+<!-- Main -->
+<div class="main-container">
+
+    <!-- Input Panel -->
+    <div class="input-panel">
+        <h2>Game Situation</h2>
+        <form id="analysis-form">
+
+            <!-- Yard Line -->
+            <div class="form-group">
+                <label for="yardline">Yard Line</label>
+                <div class="slider-container">
+                    <input type="range" id="yardline" min="1" max="99" value="50" step="1">
+                    <div class="slider-labels">
+                        <span>Opp EZ</span>
+                        <span>Opp 25</span>
+                        <span>50</span>
+                        <span>Own 25</span>
+                        <span>Own EZ</span>
+                    </div>
+                </div>
+                <div class="yard-display" id="yard-display">Midfield (50)</div>
+
+                <!-- Field Visualization (directly under yard line) -->
+                <div class="field-viz-inline">
+                    <div class="field-container">
+                        <div class="field-endzone-left">OPP</div>
+                        <div class="field-endzone-right">OWN</div>
+                        <div class="field-marker" id="field-marker" style="left:50%"></div>
+                    </div>
+                    <div class="field-labels">
+                        <span>EZ</span>
+                        <span>25</span>
+                        <span>50</span>
+                        <span>25</span>
+                        <span>EZ</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Yards to Go -->
+            <div class="form-group">
+                <label for="yards-to-go">Yards to Go</label>
+                <select id="yards-to-go">
+                    <option value="1">1 yard</option>
+                    <option value="2">2 yards</option>
+                    <option value="3">3 yards</option>
+                    <option value="4">4 yards</option>
+                    <option value="5" selected>5 yards</option>
+                    <option value="6">6 yards</option>
+                    <option value="7">7 yards</option>
+                    <option value="8">8 yards</option>
+                    <option value="9">9 yards</option>
+                    <option value="10">10 yards</option>
+                    <option value="11">11 yards</option>
+                    <option value="12">12 yards</option>
+                    <option value="13">13 yards</option>
+                    <option value="14">14 yards</option>
+                    <option value="15">15 yards</option>
+                </select>
+            </div>
+
+            <!-- Score Differential -->
+            <div class="form-group">
+                <label for="score-diff">Score Differential</label>
+                <input type="number" id="score-diff" value="0" min="-21" max="21" step="1">
+                <p class="hint">Your score minus opponent's score</p>
+            </div>
+
+            <!-- OT Possession Number -->
+            <div class="form-group">
+                <label>OT Possession</label>
+                <div class="radio-group">
+                    <div class="radio-btn">
+                        <input type="radio" name="possession" id="poss-1" value="1" checked>
+                        <label for="poss-1">1st Possession</label>
+                    </div>
+                    <div class="radio-btn">
+                        <input type="radio" name="possession" id="poss-2" value="2">
+                        <label for="poss-2">2nd Possession</label>
+                    </div>
+                    <div class="radio-btn">
+                        <input type="radio" name="possession" id="poss-3" value="3">
+                        <label for="poss-3">Sudden Death (3rd+)</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Opponent Result (conditional) -->
+            <div class="opponent-result" id="opponent-result-group">
+                <div class="form-group" style="margin-bottom:0">
+                    <label>Opponent's Result</label>
+                    <div class="radio-group">
+                        <div class="radio-btn">
+                            <input type="radio" name="opp-result" id="opp-td" value="td">
+                            <label for="opp-td">Scored TD</label>
+                        </div>
+                        <div class="radio-btn">
+                            <input type="radio" name="opp-result" id="opp-fg" value="fg" checked>
+                            <label for="opp-fg">Scored FG</label>
+                        </div>
+                        <div class="radio-btn">
+                            <input type="radio" name="opp-result" id="opp-none" value="no_score">
+                            <label for="opp-none">Didn't Score</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Game Type -->
+            <div class="form-group">
+                <label>Game Type</label>
+                <div class="radio-group">
+                    <div class="radio-btn">
+                        <input type="radio" name="game-type" id="game-reg" value="regular" checked>
+                        <label for="game-reg">Regular Season</label>
+                    </div>
+                    <div class="radio-btn">
+                        <input type="radio" name="game-type" id="game-playoffs" value="playoffs">
+                        <label for="game-playoffs">Playoffs</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Advanced Settings -->
+            <div class="advanced-toggle" id="advanced-toggle">
+                <span class="arrow">&#9654;</span> Advanced Settings
+            </div>
+            <div class="advanced-settings" id="advanced-settings">
+                <p class="advanced-note">Leave these at defaults for league-average performance. Override to model a specific team's strengths.</p>
+
+                <div class="advanced-section-label">Punter Quality</div>
+                <div class="form-group">
+                    <label for="adv-punt-dist">Avg Punt Distance <span class="label-detail">(6-game rolling avg, yards)</span></label>
+                    <input type="number" id="adv-punt-dist" value="45.9" step="0.1" min="30" max="60">
+                    <p class="hint">League avg: 45.9 · Elite: 50+ · Below avg: &lt;42</p>
+                </div>
+                <div class="form-group">
+                    <label for="adv-inside20">Inside-20 Rate <span class="label-detail">(6-game rolling avg)</span></label>
+                    <input type="number" id="adv-inside20" value="0.44" step="0.01" min="0" max="1">
+                    <p class="hint">League avg: 0.44 · Elite: 0.55+ · Below avg: &lt;0.35</p>
+                </div>
+
+                <div class="advanced-section-label">Offensive Quality</div>
+                <div class="form-group">
+                    <label for="adv-off-epa">Offensive EPA per Play <span class="label-detail">(15-game rolling avg)</span></label>
+                    <input type="number" id="adv-off-epa" value="0.00" step="0.01" min="-0.3" max="0.3">
+                    <p class="hint">League avg: 0.00 · Top offense: +0.15 · Bottom: −0.10</p>
+                </div>
+
+                <div class="advanced-section-label">Opposing Defense Quality</div>
+                <div class="form-group">
+                    <label for="adv-def-epa">Defensive EPA per Play Allowed <span class="label-detail">(15-game rolling avg)</span></label>
+                    <input type="number" id="adv-def-epa" value="0.00" step="0.01" min="-0.3" max="0.3">
+                    <p class="hint">League avg: 0.00 · Weak defense (easier): +0.10 · Elite defense: −0.10</p>
+                </div>
+            </div>
+
+            <button type="submit" class="analyze-btn" id="analyze-btn">ANALYZE</button>
+        </form>
+    </div>
+
+    <!-- Results Panel -->
+    <div class="results-panel">
+
+        <!-- Placeholder -->
+        <div class="results-placeholder" id="results-placeholder">
+            <div class="icon">&#127944;</div>
+            <p>Set the game situation and hit <strong>ANALYZE</strong> to simulate 30,000 overtime scenarios.</p>
+        </div>
+
+        <!-- Loading -->
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Simulating 30,000 overtime scenarios...</p>
+        </div>
+
+        <!-- Results Content -->
+        <div class="results-content" id="results-content">
+
+            <!-- Decision Cards -->
+            <div class="cards-row">
+                <!-- Go For It -->
+                <div class="decision-card" id="card-go">
+                    <div class="recommended-badge">RECOMMENDED</div>
+                    <div class="card-icon">&#9889;</div>
+                    <div class="card-title">Go For It</div>
+                    <div class="win-prob" id="prob-go">--</div>
+                    <div class="win-label">Win Probability</div>
+                </div>
+
+                <!-- Punt -->
+                <div class="decision-card" id="card-punt">
+                    <div class="recommended-badge">RECOMMENDED</div>
+                    <div class="card-icon">&#128075;</div>
+                    <div class="card-title">Punt</div>
+                    <div class="win-prob" id="prob-punt">--</div>
+                    <div class="win-label">Win Probability</div>
+                </div>
+
+                <!-- Field Goal -->
+                <div class="decision-card" id="card-fg">
+                    <div class="recommended-badge">RECOMMENDED</div>
+                    <div class="card-icon">&#127945;</div>
+                    <div class="card-title">Field Goal</div>
+                    <div class="win-prob" id="prob-fg">--</div>
+                    <div class="win-label">Win Probability</div>
+                </div>
+            </div>
+
+            <!-- Meta -->
+            <div class="result-meta">
+                <div class="strength-row">
+                    <span class="strength-label">Recommendation strength:</span>
+                    <span class="strength-value" id="strength-value">--</span>
+                </div>
+                <div class="details-grid">
+                    <div class="detail-item">
+                        <div class="detail-value" id="detail-conv">--</div>
+                        <div class="detail-label">4th Down Conv. Prob.</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-value" id="detail-fg">--</div>
+                        <div class="detail-label">FG Make Prob.</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-value" id="detail-punt">--</div>
+                        <div class="detail-label">Expected Punt Landing</div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
