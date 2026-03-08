@@ -244,9 +244,10 @@ def _simulate_sudden_death(score_diff, ball_yardline, is_playoffs, rng, our_turn
 
 
 def _simulate_go_for_it(yardline_100, yards_to_go, score_diff, possession_num,
-                         opponent_result_points, is_playoffs, rng):
+                         opponent_result_points, is_playoffs, rng,
+                         off_epa=0.0, def_epa=0.0):
     """Simulate one trial of going for it on 4th down."""
-    conv_prob = get_conversion_probability(yards_to_go)
+    conv_prob = get_conversion_probability(yards_to_go, off_epa, def_epa)
 
     if rng.random() < conv_prob:
         # Converted! Continue drive from new position with 1st down
@@ -353,6 +354,8 @@ def analyze(
     possession_number: int,
     opponent_result,
     is_playoffs: bool,
+    off_epa: float = 0.0,
+    def_epa: float = 0.0,
 ) -> dict:
     """
     Run the full decision analysis.
@@ -395,7 +398,8 @@ def analyze(
     for _ in range(NUM_SIMULATIONS):
         go_wins += _simulate_go_for_it(
             yardline_100, yards_to_go, score_differential,
-            possession_number, opponent_result, is_playoffs, rng
+            possession_number, opponent_result, is_playoffs, rng,
+            off_epa, def_epa
         )
 
     for _ in range(NUM_SIMULATIONS):
@@ -437,7 +441,7 @@ def analyze(
         strength = "Marginal"
 
     # Calculate display details
-    conversion_prob = get_conversion_probability(yards_to_go)
+    conversion_prob = get_conversion_probability(yards_to_go, off_epa, def_epa)
     fg_distance = yardline_100 + 17
     fg_prob = fg_make_probability(yardline_100) if fg_available else 0.0
     punt_net = expected_punt_net_yards(yardline_100)

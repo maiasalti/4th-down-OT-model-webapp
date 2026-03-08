@@ -44,6 +44,12 @@ def api_analyze():
         if possession_number != 2:
             opponent_result = None
 
+        # Advanced settings: team quality EPA (default to league avg 0.0)
+        off_epa = float(data.get("off_epa", 0.0))
+        def_epa = float(data.get("def_epa", 0.0))
+        off_epa = max(-0.3, min(0.3, off_epa))
+        def_epa = max(-0.3, min(0.3, def_epa))
+
         result = analyze(
             yardline_100=yardline_100,
             yards_to_go=yards_to_go,
@@ -51,6 +57,8 @@ def api_analyze():
             possession_number=possession_number,
             opponent_result=opponent_result,
             is_playoffs=is_playoffs,
+            off_epa=off_epa,
+            def_epa=def_epa,
         )
 
         return jsonify(result)

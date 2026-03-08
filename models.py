@@ -1,39 +1,61 @@
 """
 Submodel inference functions with hardcoded parameters.
 No external model files needed — all key coefficients are embedded.
+
+4th-down conversion uses empirical blending (v2) matching the updated
+submodel from feature/4th-down-conversion branch.
 """
 
 import math
 
 # =============================================================================
-# 4th-Down Conversion Rates by Distance Bucket (historical NFL data)
+# 4th-Down Conversion — Empirical Base Rates + EPA Blending (v2)
+# Updated to match feature/4th-down-conversion empirical blending approach.
 # =============================================================================
-CONVERSION_RATES = {
-    1: 0.655,
-    2: 0.558,
-    3: 0.483,
-    4: 0.461,
-    5: 0.432,
-    6: 0.418,
-    7: 0.418,
-    8: 0.319,
-    9: 0.319,
-    10: 0.319,
-    11: 0.246,
-    12: 0.246,
-    13: 0.246,
-    14: 0.246,
-    15: 0.246,
+_EMPIRICAL_BASE_RATE = {
+    1: 0.690,
+    2: 0.620,
+    3: 0.550,
+    4: 0.500,
+    5: 0.460,
+    6: 0.430,
+    7: 0.400,
+    8: 0.370,
+    9: 0.330,
+    10: 0.280,
 }
 
+# EPA matchup adjustment: ~4 percentage points per EPA unit
+_EPA_ADJUSTMENT = 0.04
 
-def get_conversion_probability(yards_to_go: int) -> float:
-    """Return the probability of converting a 4th down given yards to go."""
+
+def get_conversion_probability(
+    yards_to_go: int,
+    off_epa: float = 0.0,
+    def_epa: float = 0.0,
+) -> float:
+    """
+    Return the probability of converting a 4th down given yards to go,
+    adjusted for offensive/defensive quality via EPA matchup.
+
+    Uses empirical base rates blended with EPA matchup adjustment,
+    matching the updated submodel's approach.
+    """
     if yards_to_go <= 0:
         return 0.90
-    if yards_to_go >= 16:
-        return 0.137
-    return CONVERSION_RATES.get(yards_to_go, 0.319)
+    ytg = max(1, min(10, yards_to_go))
+    if yards_to_go > 10:
+        # Extrapolate: drop ~3.5% per additional yard beyond 10
+        base = _EMPIRICAL_BASE_RATE[10]
+        extra_yards = yards_to_go - 10
+        base = max(0.05, base - 0.035 * extra_yards)
+    else:
+        base = _EMPIRICAL_BASE_RATE[ytg]
+
+    # Adjust for team quality matchup
+    epa_matchup = off_epa - def_epa
+    adjusted = base + epa_matchup * _EPA_ADJUSTMENT
+    return max(0.01, min(0.99, adjusted))
 
 
 # =============================================================================

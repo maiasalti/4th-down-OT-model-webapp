@@ -90,6 +90,10 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
 
+        // Advanced settings: EPA values
+        const off_epa = parseFloat(document.getElementById("adv-off-epa").value) || 0.0;
+        const def_epa = parseFloat(document.getElementById("adv-def-epa").value) || 0.0;
+
         const payload = {
             yardline_100,
             yards_to_go,
@@ -97,6 +101,8 @@ document.addEventListener("DOMContentLoaded", () => {
             possession_number,
             opponent_result,
             is_playoffs,
+            off_epa,
+            def_epa,
         };
 
         // Show loading
