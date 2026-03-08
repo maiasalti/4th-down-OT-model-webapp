@@ -206,12 +206,126 @@
                     <input type="number" id="adv-off-epa" value="0.00" step="0.01" min="-0.3" max="0.3">
                     <p class="hint">League avg: 0.00 · Top offense: +0.15 · Bottom: −0.10</p>
                 </div>
+                <div class="form-group">
+                    <label for="adv-off-success-rate">Offensive Success Rate <span class="label-detail">(15-game rolling avg)</span></label>
+                    <input type="number" id="adv-off-success-rate" value="0.42" step="0.01" min="0.20" max="0.65">
+                    <p class="hint">League avg: 0.42 · Top offense: 0.50+ · Bottom: &lt;0.35</p>
+                </div>
+                <div class="form-group">
+                    <label for="adv-off-ppg">Offensive Points per Game <span class="label-detail">(15-game rolling avg)</span></label>
+                    <input type="number" id="adv-off-ppg" value="23.0" step="0.5" min="10" max="40">
+                    <p class="hint">League avg: 23.0 · Top offense: 28+ · Bottom: &lt;17</p>
+                </div>
 
                 <div class="advanced-section-label">Opposing Defense Quality</div>
                 <div class="form-group">
                     <label for="adv-def-epa">Defensive EPA per Play Allowed <span class="label-detail">(15-game rolling avg)</span></label>
                     <input type="number" id="adv-def-epa" value="0.00" step="0.01" min="-0.3" max="0.3">
                     <p class="hint">League avg: 0.00 · Weak defense (easier): +0.10 · Elite defense: −0.10</p>
+                </div>
+                <div class="form-group">
+                    <label for="adv-def-success-rate">Defensive Success Rate Allowed <span class="label-detail">(15-game rolling avg)</span></label>
+                    <input type="number" id="adv-def-success-rate" value="0.42" step="0.01" min="0.20" max="0.65">
+                    <p class="hint">League avg: 0.42 · Weak defense (easier): 0.48+ · Elite: &lt;0.36</p>
+                </div>
+                <div class="form-group">
+                    <label for="adv-def-ppg">Defensive Points per Game Allowed <span class="label-detail">(15-game rolling avg)</span></label>
+                    <input type="number" id="adv-def-ppg" value="23.0" step="0.5" min="10" max="40">
+                    <p class="hint">League avg: 23.0 · Weak defense (easier): 27+ · Elite: &lt;18</p>
+                </div>
+
+                <div class="advanced-section-label">Kicker Quality</div>
+                <div class="form-group">
+                    <label for="adv-fg-rate">Kicker FG Make Rate <span class="label-detail">(6-game rolling avg)</span></label>
+                    <input type="number" id="adv-fg-rate" value="" step="0.01" min="0" max="1" placeholder="league avg by distance">
+                    <p class="hint">Leave blank for league avg · Elite: 0.90+ · Below avg: &lt;0.75</p>
+                </div>
+
+                <div class="advanced-section-label">Play Type</div>
+                <div class="form-group">
+                    <label for="adv-shotgun">
+                        <input type="checkbox" id="adv-shotgun" checked> Shotgun Formation
+                    </label>
+                    <p class="hint">Most 4th-down attempts use shotgun</p>
+                </div>
+                <div class="form-group">
+                    <label for="adv-no-huddle">
+                        <input type="checkbox" id="adv-no-huddle"> No Huddle
+                    </label>
+                    <p class="hint">Check if the offense is running a hurry-up / no-huddle</p>
+                </div>
+
+                <div class="advanced-section-label">Game Context</div>
+                <div class="form-group">
+                    <label for="adv-home">Home / Away</label>
+                    <select id="adv-home">
+                        <option value="neutral" selected>Neutral (default)</option>
+                        <option value="home">Home</option>
+                        <option value="away">Away</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="adv-spread">Team Spread <span class="label-detail">(pregame line)</span></label>
+                    <input type="number" id="adv-spread" value="0" step="0.5" min="-17" max="17">
+                    <p class="hint">Negative = favored (e.g. −7). Zero = pick'em.</p>
+                </div>
+                <div class="form-group">
+                    <label for="adv-off-timeouts">Offense Timeouts Remaining</label>
+                    <select id="adv-off-timeouts">
+                        <option value="0">0</option>
+                        <option value="1">1</option>
+                        <option value="2" selected>2</option>
+                        <option value="3">3</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="adv-def-timeouts">Defense Timeouts Remaining</label>
+                    <select id="adv-def-timeouts">
+                        <option value="0">0</option>
+                        <option value="1">1</option>
+                        <option value="2" selected>2</option>
+                        <option value="3">3</option>
+                    </select>
+                </div>
+
+                <div class="advanced-section-label">Weather &amp; Venue</div>
+                <div class="form-group">
+                    <label for="adv-dome">
+                        <input type="checkbox" id="adv-dome"> Dome / Closed Roof
+                    </label>
+                    <p class="hint">Overrides wind to 0 and temp to 72°F</p>
+                </div>
+                <div class="form-group">
+                    <label for="adv-wind">Wind Speed <span class="label-detail">(MPH)</span></label>
+                    <input type="number" id="adv-wind" value="8" step="1" min="0" max="50">
+                    <p class="hint">Calm: 0-5 · Moderate: 10-15 · High: 20+</p>
+                </div>
+                <div class="form-group">
+                    <label for="adv-wind-gust">Wind Gust <span class="label-detail">(peak MPH, optional)</span></label>
+                    <input type="number" id="adv-wind-gust" value="" step="1" min="0" max="60" placeholder="defaults to wind speed">
+                    <p class="hint">Leave blank to default to wind speed</p>
+                </div>
+                <div class="form-group">
+                    <label for="adv-temp">Temperature <span class="label-detail">(°F)</span></label>
+                    <input type="number" id="adv-temp" value="65" step="1" min="-10" max="120">
+                    <p class="hint">Cold: &lt;32 · Mild: 50-70 · Hot: 85+</p>
+                </div>
+                <div class="form-group">
+                    <label for="adv-precip">
+                        <input type="checkbox" id="adv-precip"> Precipitation
+                    </label>
+                    <p class="hint">Rain, snow, sleet, or fog</p>
+                </div>
+                <div class="form-group">
+                    <label for="adv-surface">
+                        <input type="checkbox" id="adv-surface" checked> Grass Surface
+                    </label>
+                    <p class="hint">Uncheck for artificial turf</p>
+                </div>
+                <div class="form-group">
+                    <label for="adv-altitude">Altitude <span class="label-detail">(feet)</span></label>
+                    <input type="number" id="adv-altitude" value="0" step="100" min="0" max="6000">
+                    <p class="hint">Sea level: 0 · Denver: 5,280 · Mexico City: 7,350</p>
                 </div>
             </div>
 
@@ -225,13 +339,13 @@
         <!-- Placeholder -->
         <div class="results-placeholder" id="results-placeholder">
             <div class="icon">&#127944;</div>
-            <p>Set the game situation and hit <strong>ANALYZE</strong> to simulate 30,000 overtime scenarios.</p>
+            <p>Set the game situation and hit <strong>ANALYZE</strong> to evaluate the optimal 4th-down decision.</p>
         </div>
 
         <!-- Loading -->
         <div class="loading" id="loading">
             <div class="spinner"></div>
-            <p>Simulating 30,000 overtime scenarios...</p>
+            <p>Running 4 ML submodels...</p>
         </div>
 
         <!-- Results Content -->
@@ -292,16 +406,16 @@
             <!-- Decision Context -->
             <div class="decision-context" id="decision-context"></div>
 
-            <!-- Simulation Breakdown (transparency) -->
+            <!-- Model Breakdown (transparency) -->
             <div class="transparency-toggle" id="transparency-toggle">
                 <span class="arrow">&#9654;</span> Show how this was calculated
             </div>
             <div class="transparency-panel" id="transparency-panel">
-                <div class="transparency-header">Simulation Breakdown</div>
+                <div class="transparency-header">Model Breakdown</div>
                 <div class="transparency-scenario" id="transparency-scenario"></div>
                 <div class="transparency-steps" id="transparency-steps"></div>
                 <div class="transparency-footer">
-                    Each option was simulated 10,000 times. The win probability is the fraction of simulations where the team wins. Higher sample count = more stable estimates (typically within +/- 1pp).
+                    Win probabilities are computed analytically using 4 trained ML submodels. The WP model evaluates the expected outcome of each decision by weighting the post-play states by their probability of occurring.
                 </div>
             </div>
 
@@ -314,14 +428,14 @@
     <div class="about-container">
         <h2 class="about-title">About the Model</h2>
         <p class="about-intro">
-            This tool recommends whether an NFL coach should <strong>go for it</strong>, <strong>punt</strong>, or attempt a <strong>field goal</strong> on 4th down during overtime. It combines four machine-learning submodels with Monte Carlo simulation to estimate the win probability of each option.
+            This tool recommends whether an NFL coach should <strong>go for it</strong>, <strong>punt</strong>, or attempt a <strong>field goal</strong> on 4th down during overtime. It combines four trained XGBoost ML submodels with expected-value maximisation to estimate the win probability of each option.
         </p>
 
         <!-- How It Works -->
         <div class="about-block">
             <h3>How It Works</h3>
-            <p>For each of the three choices, the engine simulates <strong>10,000 game continuations</strong> from the current decision point. Each simulation plays out the rest of overtime play-by-play, using historical NFL probability distributions. The win probability for each option is simply the fraction of simulations where the team wins.</p>
-            <div class="about-formula">Recommendation = the option with the highest simulated win probability</div>
+            <p>For each of the three choices, the engine constructs the <strong>post-play game state</strong> (e.g. after a successful conversion, missed FG, or punt) and uses the Win Probability model to evaluate each outcome. The expected win probability is the probability-weighted combination of all possible outcomes for each decision.</p>
+            <div class="about-formula">Recommendation = argmax(WP_go, WP_fg, WP_punt)</div>
         </div>
 
         <!-- The Four Submodels -->
@@ -337,29 +451,44 @@
                 <div class="submodel-card">
                     <div class="submodel-icon">&#127945;</div>
                     <h4>Field Goal Probability</h4>
-                    <p>Predicts the probability a field goal attempt is made using a Gradient Boosting Classifier with Platt scaling calibration. Accounts for kick distance, weather, venue, and kicker performance.</p>
+                    <p>Predicts the probability a field goal attempt is made using an XGBoost Classifier with isotonic calibration. Accounts for kick distance, weather, venue, and kicker performance across 15 features.</p>
                     <div class="submodel-stat">Calibrated probabilities</div>
                 </div>
                 <div class="submodel-card">
                     <div class="submodel-icon">&#9889;</div>
                     <h4>4th Down Conversion</h4>
-                    <p>Predicts the probability of converting a 4th down attempt using an XGBoost Classifier with isotonic calibration. Yards to go is the primary feature, with a monotone constraint enforcing that more yards = lower probability.</p>
+                    <p>Predicts the probability of converting a 4th down attempt using an XGBoost Classifier with isotonic calibration and empirical blending. Uses 15 features including rolling team stats, with monotone constraints enforcing that more yards = lower probability.</p>
                     <div class="submodel-stat">Monotone-constrained</div>
                 </div>
                 <div class="submodel-card">
                     <div class="submodel-icon">&#128200;</div>
                     <h4>Win Probability</h4>
-                    <p>Estimates the probability of winning from any game state using an XGBoost Classifier with isotonic calibration. Trained on 350,000+ regulation plays from 2016-2024. OT plays excluded to avoid rule-change contamination.</p>
+                    <p>Estimates the probability of winning from any game state using an XGBoost Classifier with isotonic calibration. Trained on 350,000+ regulation plays from 2016-2024. OT plays excluded to avoid rule-change contamination; OT inference handled via a state transformer.</p>
                     <div class="submodel-stat">350K+ training plays</div>
                 </div>
             </div>
         </div>
 
-        <!-- Monte Carlo Simulation -->
+        <!-- Decision Formulas -->
         <div class="about-block">
-            <h3>Monte Carlo Simulation</h3>
-            <p>After a 4th-down decision, the game doesn't end -- there are dozens of subsequent plays, each with many possible outcomes. The number of possible game continuations grows exponentially, far too many to calculate analytically.</p>
-            <p>Monte Carlo simulation solves this by using randomness to explore the space of possibilities. Think of it like flipping a coin: flip 10 times and you might get 7 heads, but flip 10,000 times and you'll get very close to 50%. The same principle gives us stable, reliable win probability estimates.</p>
+            <h3>Decision Framework</h3>
+            <div class="formula-grid">
+                <div class="formula-item">
+                    <h4>Go For It</h4>
+                    <div class="about-formula">WP = P(convert) &times; WP(1st down) + P(fail) &times; [1 &minus; WP(opp at spot)]</div>
+                    <p>Win probability is the weighted average of converting (continuing the drive) vs. failing (opponent gets the ball at the spot).</p>
+                </div>
+                <div class="formula-item">
+                    <h4>Punt</h4>
+                    <div class="about-formula">WP = 1 &minus; WP(opponent at predicted punt landing)</div>
+                    <p>Win probability depends on where the punt pins the opponent. Deeper punts mean a worse starting position for the other team.</p>
+                </div>
+                <div class="formula-item">
+                    <h4>Field Goal</h4>
+                    <div class="about-formula">WP = P(make) &times; [1 &minus; WP(opp kickoff)] + P(miss) &times; [1 &minus; WP(opp at spot)]</div>
+                    <p>If made, the team gains 3 points and kicks off. If missed, the opponent gets the ball at the line of scrimmage or the 20, whichever is farther back.</p>
+                </div>
+            </div>
         </div>
 
         <!-- OT Rules -->
@@ -381,33 +510,11 @@
             </div>
         </div>
 
-        <!-- Decision Formulas -->
-        <div class="about-block">
-            <h3>Decision Framework</h3>
-            <div class="formula-grid">
-                <div class="formula-item">
-                    <h4>Go For It</h4>
-                    <div class="about-formula">WP = P(convert) x WP(first down) + P(fail) x WP(turnover)</div>
-                    <p>Win probability is the weighted average of converting (continuing the drive) vs. failing (opponent gets the ball at the spot).</p>
-                </div>
-                <div class="formula-item">
-                    <h4>Punt</h4>
-                    <div class="about-formula">WP = WP(opponent starts at predicted punt landing)</div>
-                    <p>Win probability depends on where the punt pins the opponent. Deeper punts mean a worse starting position for the other team.</p>
-                </div>
-                <div class="formula-item">
-                    <h4>Field Goal</h4>
-                    <div class="about-formula">WP = P(make) x WP(+3 pts) + P(miss) x WP(opp at LOS/20)</div>
-                    <p>If made, the team gains 3 points and kicks off. If missed, the opponent gets the ball at the line of scrimmage or the 20, whichever is farther back.</p>
-                </div>
-            </div>
-        </div>
-
         <!-- Data & Limitations -->
         <div class="about-block">
             <h3>Data & Limitations</h3>
             <p>All models are trained on NFL play-by-play data from the <strong>nfl_data_py</strong> package, spanning 2016-2024 (350,000+ plays). Rolling statistics use a 6-game window for special teams and 15-game window for offense/defense, shifted by 1 game to prevent data leakage.</p>
-            <p><strong>Known limitations:</strong> The punt model tracks team-level stats rather than individual punters. The win probability model is trained on regulation plays only. Weather data may be incomplete for some older games. Rolling averages don't reset at season boundaries.</p>
+            <p><strong>Known limitations:</strong> The punt model tracks team-level stats rather than individual punters. The win probability model is trained on regulation plays only; OT inference is handled by mapping OT states to regulation-equivalent states. Weather data may be incomplete for some older games.</p>
         </div>
 
         <!-- Credit -->

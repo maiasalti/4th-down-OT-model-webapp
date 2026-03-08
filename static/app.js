@@ -94,6 +94,43 @@ document.addEventListener("DOMContentLoaded", () => {
         const off_epa = parseFloat(document.getElementById("adv-off-epa").value) || 0.0;
         const def_epa = parseFloat(document.getElementById("adv-def-epa").value) || 0.0;
 
+        // Offensive & defensive rolling stats
+        const off_success_rate = parseFloat(document.getElementById("adv-off-success-rate").value) || 0.42;
+        const off_ppg = parseFloat(document.getElementById("adv-off-ppg").value) || 23.0;
+        const def_success_rate = parseFloat(document.getElementById("adv-def-success-rate").value) || 0.42;
+        const def_ppg = parseFloat(document.getElementById("adv-def-ppg").value) || 23.0;
+
+        // Play type
+        const shotgun = document.getElementById("adv-shotgun")?.checked ? 1 : 0;
+        const no_huddle = document.getElementById("adv-no-huddle")?.checked ? 1 : 0;
+
+        // Punt quality settings
+        const puntDistEl = document.getElementById("adv-punt-dist");
+        const inside20El = document.getElementById("adv-inside20");
+        const punt_distance_roll6 = puntDistEl ? parseFloat(puntDistEl.value) || null : null;
+        const inside_twenty_rate_roll6 = inside20El ? parseFloat(inside20El.value) || null : null;
+
+        // Kicker quality
+        const fgRateEl = document.getElementById("adv-fg-rate");
+        const fg_make_rate_roll6 = fgRateEl && fgRateEl.value !== "" ? parseFloat(fgRateEl.value) : null;
+
+        // Game context
+        const homeVal = document.getElementById("adv-home")?.value || "neutral";
+        const is_home = homeVal === "neutral" ? null : homeVal === "home";
+        const offense_timeouts = parseInt(document.getElementById("adv-off-timeouts")?.value) ?? 2;
+        const defense_timeouts = parseInt(document.getElementById("adv-def-timeouts")?.value) ?? 2;
+        const posteam_spread = parseFloat(document.getElementById("adv-spread")?.value) || 0.0;
+
+        // Weather & venue settings (used by FG model)
+        const is_dome = document.getElementById("adv-dome")?.checked || false;
+        const wind = parseFloat(document.getElementById("adv-wind")?.value) || 0;
+        const windGustEl = document.getElementById("adv-wind-gust");
+        const wind_gust = windGustEl && windGustEl.value !== "" ? parseFloat(windGustEl.value) : null;
+        const temp = parseFloat(document.getElementById("adv-temp")?.value) || 65;
+        const is_precipitation = document.getElementById("adv-precip")?.checked || false;
+        const surface_is_grass = document.getElementById("adv-surface")?.checked ?? true;
+        const altitude_ft = parseFloat(document.getElementById("adv-altitude")?.value) || 0;
+
         const payload = {
             yardline_100,
             yards_to_go,
@@ -103,6 +140,26 @@ document.addEventListener("DOMContentLoaded", () => {
             is_playoffs,
             off_epa,
             def_epa,
+            off_success_rate,
+            off_ppg,
+            def_success_rate,
+            def_ppg,
+            shotgun,
+            no_huddle,
+            punt_distance_roll6,
+            inside_twenty_rate_roll6,
+            fg_make_rate_roll6,
+            is_home,
+            offense_timeouts,
+            defense_timeouts,
+            posteam_spread,
+            is_dome,
+            wind,
+            wind_gust,
+            temp,
+            is_precipitation,
+            surface_is_grass,
+            altitude_ft,
         };
 
         // Show loading
@@ -110,7 +167,7 @@ document.addEventListener("DOMContentLoaded", () => {
         resultsContent.classList.remove("active");
         loadingEl.classList.add("active");
         analyzeBtn.disabled = true;
-        analyzeBtn.textContent = "SIMULATING...";
+        analyzeBtn.textContent = "ANALYZING...";
 
         // Reset transparency
         transToggle.classList.remove("open");
@@ -305,7 +362,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 <div class="scenario-item"><span class="scenario-key">Score diff</span><span class="scenario-val">${inputs.score_differential >= 0 ? "+" : ""}${inputs.score_differential}</span></div>
                 <div class="scenario-item"><span class="scenario-key">OT phase</span><span class="scenario-val">${possLabel}</span></div>
                 <div class="scenario-item"><span class="scenario-key">Game type</span><span class="scenario-val">${inputs.is_playoffs ? "playoffs" : "regular season"}</span></div>
-                <div class="scenario-item"><span class="scenario-key">Simulations</span><span class="scenario-val">10,000 per option</span></div>
+                <div class="scenario-item"><span class="scenario-key">Method</span><span class="scenario-val">4 ML submodels</span></div>
             </div>
         `;
 
@@ -327,11 +384,11 @@ document.addEventListener("DOMContentLoaded", () => {
                     <span class="step-wp ${rec === 'go' ? 'best' : ''}">${wp.go !== null ? wp.go.toFixed(1) + "%" : "N/A"}</span>
                 </div>
                 <div class="step-logic">
-                    <div class="step-line"><span class="step-num">1</span> 4th down conversion model estimates <strong>${convProb}%</strong> chance of converting</div>
-                    <div class="step-line"><span class="step-num">2</span> If converted (${convProb}% of sims): team continues drive with 1st down at current spot</div>
-                    <div class="step-line"><span class="step-num">3</span> If failed (${(100 - convProb).toFixed(1)}% of sims): opponent gets ball at their ${oppStart > 50 ? "own " + (100 - oppStart) : oppStart}</div>
-                    <div class="step-line"><span class="step-num">4</span> Remaining OT is simulated play-by-play for all 10,000 trials</div>
-                    <div class="step-result">Result: team wins in <strong>${wp.go !== null ? wp.go.toFixed(1) : "--"}%</strong> of simulations</div>
+                    <div class="step-line"><span class="step-num">1</span> Conversion model estimates <strong>${convProb}%</strong> chance of converting (XGBoost + empirical blending)</div>
+                    <div class="step-line"><span class="step-num">2</span> If converted (${convProb}%): WP model evaluates state with 1st down at current spot</div>
+                    <div class="step-line"><span class="step-num">3</span> If failed (${(100 - convProb).toFixed(1)}%): WP model evaluates opponent getting ball at their ${oppStart > 50 ? "own " + (100 - oppStart) : oppStart}</div>
+                    <div class="step-line"><span class="step-num">4</span> Expected WP = weighted combination of both outcomes</div>
+                    <div class="step-result">Result: <strong>${wp.go !== null ? wp.go.toFixed(1) : "--"}%</strong> expected win probability</div>
                 </div>
             </div>
 
@@ -342,10 +399,10 @@ document.addEventListener("DOMContentLoaded", () => {
                     <span class="step-wp ${rec === 'punt' ? 'best' : ''}">${wp.punt !== null ? wp.punt.toFixed(1) + "%" : "N/A"}</span>
                 </div>
                 <div class="step-logic">
-                    <div class="step-line"><span class="step-num">1</span> Punt model predicts opponent starts at <strong>${puntLand}</strong></div>
-                    <div class="step-line"><span class="step-num">2</span> Opponent gets ball at predicted position in all 10,000 sims</div>
-                    <div class="step-line"><span class="step-num">3</span> Remaining OT is simulated play-by-play from opponent's drive onward</div>
-                    <div class="step-result">Result: team wins in <strong>${wp.punt !== null ? wp.punt.toFixed(1) : "--"}%</strong> of simulations</div>
+                    <div class="step-line"><span class="step-num">1</span> Punt model (XGBoost) predicts opponent starts at <strong>${puntLand}</strong></div>
+                    <div class="step-line"><span class="step-num">2</span> WP model evaluates opponent's state from that field position</div>
+                    <div class="step-line"><span class="step-num">3</span> Team's WP = 1 minus opponent's WP from that state</div>
+                    <div class="step-result">Result: <strong>${wp.punt !== null ? wp.punt.toFixed(1) : "--"}%</strong> expected win probability</div>
                 </div>
             </div>
 
@@ -361,15 +418,15 @@ document.addEventListener("DOMContentLoaded", () => {
         if (fgAvail) {
             stepsHTML += `
                     <div class="step-line"><span class="step-num">1</span> FG distance: <strong>${fgDist} yards</strong> (yardline + 17 for snap/endzone)</div>
-                    <div class="step-line"><span class="step-num">2</span> FG model estimates <strong>${fgProb}%</strong> make probability at this distance</div>
-                    <div class="step-line"><span class="step-num">3</span> If made (${fgProb}% of sims): team scores +3, opponent receives kickoff at their 25</div>
-                    <div class="step-line"><span class="step-num">4</span> If missed (${(100 - fgProb).toFixed(1)}% of sims): opponent gets ball at their 20 or spot of kick</div>
-                    <div class="step-line"><span class="step-num">5</span> Remaining OT simulated play-by-play for all 10,000 trials</div>
-                    <div class="step-result">Result: team wins in <strong>${wp.fg.toFixed(1)}%</strong> of simulations</div>
+                    <div class="step-line"><span class="step-num">2</span> FG model (XGBoost) estimates <strong>${fgProb}%</strong> make probability</div>
+                    <div class="step-line"><span class="step-num">3</span> If made (${fgProb}%): WP model evaluates state with +3 pts, opponent receives kickoff</div>
+                    <div class="step-line"><span class="step-num">4</span> If missed (${(100 - fgProb).toFixed(1)}%): WP model evaluates opponent at their 20 or spot of kick</div>
+                    <div class="step-line"><span class="step-num">5</span> Expected WP = weighted combination of both outcomes</div>
+                    <div class="step-result">Result: <strong>${wp.fg.toFixed(1)}%</strong> expected win probability</div>
             `;
         } else {
             stepsHTML += `
-                    <div class="step-line"><span class="step-num">!</span> Kick distance of <strong>${fgDist} yards</strong> exceeds NFL record (66 yds) — not simulated</div>
+                    <div class="step-line"><span class="step-num">!</span> Kick distance of <strong>${fgDist} yards</strong> exceeds NFL record (66 yds) — not evaluated</div>
             `;
         }
 

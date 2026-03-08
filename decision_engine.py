@@ -1,350 +1,63 @@
 """
-Monte Carlo simulation engine for NFL OT 4th-down decisions.
-Combines conversion, FG, and punt submodels to estimate win probability
-for each of the three decisions: GO FOR IT, PUNT, FIELD GOAL.
+4th-down decision engine using analytical expected-value maximisation.
+
+Replaces the Monte Carlo simulation with the FourthDownDecisionEngine approach
+from the source repo (feature/win-probability-model branch):
+
+    wp_go   = p_conv * wp(success_state) + (1-p_conv) * [1 - wp(failure_state)]
+    wp_fg   = p_make * [1 - wp(make_state)] + (1-p_make) * [1 - wp(miss_state)]
+    wp_punt = 1 - wp(punt_state)
+
+    decision = argmax(wp_go, wp_fg, wp_punt)
+
+Uses 4 trained ML submodels:
+  1. 4th-down conversion probability (XGBoost + isotonic calibration)
+  2. Field goal make probability (XGBoost + isotonic calibration)
+  3. Punt outcome predictor (XGBoost regressor)
+  4. Win probability model (XGBoost + isotonic calibration)
 """
 
 import numpy as np
 from models import (
     get_conversion_probability,
     fg_make_probability,
-    punt_landing_yardline,
+    predict_punt_opponent_start,
     expected_punt_net_yards,
+    WinProbabilityModel,
 )
 
-NUM_SIMULATIONS = 10_000
+# Kickoff touchback yardline by season (receiving team's yardline_100)
+_KICKOFF_TOUCHBACK = {
+    2025: 65.0,   # 35-yard line
+    2024: 70.0,   # 30-yard line
+    2016: 75.0,   # 25-yard line
+}
+PUNT_TOUCHBACK_YARDLINE = 80.0  # always 20-yard line
 
-# Drive simulation constants
-AVG_YARDS_PER_PLAY = 5.5
-PASS_RATE = 0.55
-TD_RATE_PER_PLAY = 0.04
-RED_ZONE_TD_RATE = 0.08
-TURNOVER_RATE_PER_PLAY = 0.03
-INCOMPLETE_RATE = 0.25  # of pass plays
-KICKOFF_START = 75  # opponent starts at their 25 (yardline_100 = 75)
-
-
-def _simulate_play(yardline_100, down, distance, rng):
-    """
-    Simulate a single play. Returns (new_yardline_100, new_down, new_distance, result).
-    result: 'play', 'td', 'turnover', 'safety'
-    """
-    # Turnover check
-    if rng.random() < TURNOVER_RATE_PER_PLAY:
-        return yardline_100, down, distance, "turnover"
-
-    # TD check (higher in red zone)
-    td_rate = RED_ZONE_TD_RATE if yardline_100 <= 20 else TD_RATE_PER_PLAY
-    if rng.random() < td_rate:
-        return 0, 0, 0, "td"
-
-    # Determine yards gained
-    is_pass = rng.random() < PASS_RATE
-    if is_pass and rng.random() < INCOMPLETE_RATE:
-        yards = 0
-    else:
-        yards = max(-5, int(rng.normal(AVG_YARDS_PER_PLAY, 4)))
-
-    new_yardline = yardline_100 - yards
-    if new_yardline <= 0:
-        return 0, 0, 0, "td"
-    if new_yardline >= 100:
-        return 100, down, distance, "safety"
-
-    new_distance = distance - yards
-    if new_distance <= 0:
-        # First down
-        return new_yardline, 1, min(10, new_yardline), "play"
-    else:
-        return new_yardline, down + 1, new_distance, "play"
+# Default season for kickoff rules
+DEFAULT_SEASON = 2025
 
 
-def _ai_coach_4th_down(yardline_100, distance):
-    """Simple AI coach for 4th down decisions during simulation."""
-    fg_distance = yardline_100 + 17
-    if yardline_100 <= 3 and distance <= 3:
-        return "go"
-    if fg_distance <= 52 and yardline_100 > 3:
-        return "fg"
-    if yardline_100 >= 60:
-        return "punt"
-    if distance <= 2 and yardline_100 <= 10:
-        return "go"
-    return "punt"
+def _kickoff_touchback_yardline(season: int = DEFAULT_SEASON) -> float:
+    for cutoff in sorted(_KICKOFF_TOUCHBACK.keys(), reverse=True):
+        if season >= cutoff:
+            return _KICKOFF_TOUCHBACK[cutoff]
+    return 75.0
 
 
-def _simulate_drive(yardline_100, rng):
-    """
-    Simulate an offensive drive from a given field position.
-    Returns (result, points):
-        result: 'td', 'fg', 'punt', 'turnover', 'turnover_on_downs', 'safety'
-        points: 7 for TD, 3 for FG, 0 otherwise
-        opp_yardline: where the opponent gets the ball (if applicable)
-    """
-    down = 1
-    distance = min(10, yardline_100)
-    max_plays = 30
-
-    for _ in range(max_plays):
-        if down == 4:
-            decision = _ai_coach_4th_down(yardline_100, distance)
-            if decision == "fg":
-                p_make = fg_make_probability(yardline_100)
-                if rng.random() < p_make:
-                    opp_start = KICKOFF_START
-                    return "fg", 3, opp_start
-                else:
-                    opp_start = max(80, 100 - yardline_100)
-                    return "missed_fg", 0, opp_start
-            elif decision == "punt":
-                opp_start = punt_landing_yardline(yardline_100, rng)
-                return "punt", 0, opp_start
-            else:
-                # Go for it
-                conv_prob = get_conversion_probability(distance)
-                if rng.random() < conv_prob:
-                    down = 1
-                    distance = min(10, yardline_100)
-                    continue
-                else:
-                    return "turnover_on_downs", 0, 100 - yardline_100
-
-        yardline_100, down, distance, result = _simulate_play(
-            yardline_100, down, distance, rng
+def _flip_possession(state: dict) -> dict:
+    """Flip possession to the other team."""
+    new = dict(state)
+    new["score_differential"] = -state.get("score_differential", 0.0)
+    new["offense_timeouts"] = state.get("defense_timeouts", 3)
+    new["defense_timeouts"] = state.get("offense_timeouts", 3)
+    new["home"] = 1.0 - float(state.get("home", 0.0))
+    new["posteam_spread"] = -float(state.get("posteam_spread", 0.0))
+    if state.get("is_overtime", 0):
+        new["overtime_possession_number"] = (
+            int(state.get("overtime_possession_number", 0)) + 1
         )
-
-        if result == "td":
-            return "td", 7, KICKOFF_START
-        elif result == "turnover":
-            opp_start = 100 - yardline_100
-            opp_start = max(1, min(99, opp_start))
-            return "turnover", 0, opp_start
-        elif result == "safety":
-            return "safety", -2, KICKOFF_START
-
-    # If we hit max plays, treat as punt
-    return "punt", 0, 80
-
-
-def _simulate_ot_from_state(
-    team_score_diff,
-    possession_num,
-    ball_yardline_100,
-    is_playoffs,
-    rng,
-    first_poss_result=None,
-):
-    """
-    Simulate the rest of OT starting from a given state.
-    team_score_diff: our score minus opponent's at the START of this possession.
-    possession_num: which possession we're on (1, 2, 3+)
-    ball_yardline_100: where the offense has the ball
-    first_poss_result: points scored by first possession team (for poss 2 tracking)
-
-    Returns: 1 for win, 0 for loss, 0.5 for tie.
-    """
-    # Current team is on offense
-    drive_result, drive_points, opp_start = _simulate_drive(ball_yardline_100, rng)
-
-    new_diff = team_score_diff + drive_points
-
-    if possession_num == 1:
-        # After first possession, opponent gets ball regardless of what happened
-        # Opponent's perspective: their score_diff is -new_diff
-        # Simulate opponent drive
-        return _simulate_ot_opponent_response(
-            new_diff, drive_points, opp_start, 2, is_playoffs, rng
-        )
-
-    elif possession_num == 2:
-        # We're responding to first possession team's result
-        if new_diff > 0:
-            return 1.0  # We're ahead, we win
-        elif new_diff < 0:
-            return 0.0  # We're behind, we lose
-        else:
-            # Tied — go to sudden death (possession 3+)
-            # Opponent gets ball next in sudden death
-            return _simulate_sudden_death(0, opp_start, is_playoffs, rng, our_turn=False)
-
-    else:
-        # Sudden death (possession 3+)
-        if drive_points > 0:
-            return 1.0  # Any score wins
-        elif drive_points < 0:
-            # Safety scored against us
-            return 0.0
-        else:
-            # No score, opponent gets ball in sudden death
-            return _simulate_sudden_death(0, opp_start, is_playoffs, rng, our_turn=False)
-
-
-def _simulate_ot_opponent_response(score_diff, first_poss_points, opp_yardline, poss_num, is_playoffs, rng):
-    """
-    Simulate the opponent's response drive and beyond.
-    score_diff: our advantage after our drive.
-    """
-    opp_result, opp_points, next_start = _simulate_drive(opp_yardline, rng)
-
-    opp_new_diff = -score_diff + opp_points  # from opponent's perspective
-    our_new_diff = score_diff - opp_points   # from our perspective
-
-    if poss_num == 2:
-        # End of guaranteed possessions
-        if our_new_diff > 0:
-            return 1.0
-        elif our_new_diff < 0:
-            return 0.0
-        else:
-            # Tied after both possessions
-            if not is_playoffs:
-                # Regular season: check if we're past guaranteed possessions
-                # If both had a possession and it's tied, more sudden death
-                # But regular season can end in tie after OT period
-                # Simplified: give each team 2 more sudden death possessions, then tie
-                return _simulate_sudden_death(
-                    0, next_start, is_playoffs, rng, our_turn=True, max_possessions=6
-                )
-            else:
-                return _simulate_sudden_death(
-                    0, next_start, is_playoffs, rng, our_turn=True
-                )
-    else:
-        # Shouldn't get here normally
-        if our_new_diff > 0:
-            return 1.0
-        elif our_new_diff < 0:
-            return 0.0
-        else:
-            return _simulate_sudden_death(0, next_start, is_playoffs, rng, our_turn=True)
-
-
-def _simulate_sudden_death(score_diff, ball_yardline, is_playoffs, rng, our_turn=True, max_possessions=20):
-    """
-    Simulate sudden death OT.
-    Any score wins. In regular season, game can end in tie.
-    """
-    for i in range(max_possessions):
-        drive_result, drive_points, opp_start = _simulate_drive(ball_yardline, rng)
-
-        if drive_points > 0:
-            return 1.0 if our_turn else 0.0
-        if drive_points < 0:
-            # Safety
-            return 0.0 if our_turn else 1.0
-
-        ball_yardline = opp_start
-        our_turn = not our_turn
-
-    # If we exhaust possessions
-    if not is_playoffs:
-        return 0.5  # Tie in regular season
-    # Playoffs: keep going (but we cap at max_possessions for perf)
-    return 0.5
-
-
-def _simulate_go_for_it(yardline_100, yards_to_go, score_diff, possession_num,
-                         opponent_result_points, is_playoffs, rng,
-                         off_epa=0.0, def_epa=0.0):
-    """Simulate one trial of going for it on 4th down."""
-    conv_prob = get_conversion_probability(yards_to_go, off_epa, def_epa)
-
-    if rng.random() < conv_prob:
-        # Converted! Continue drive from new position with 1st down
-        new_yardline = yardline_100  # Stay at same spot (already past the marker)
-        # Simulate rest of our drive from here
-        drive_result, drive_points, opp_start = _simulate_drive(new_yardline, rng)
-        our_total_diff = score_diff + drive_points
-    else:
-        # Failed! Opponent gets ball at the spot
-        opp_start = max(1, min(99, 100 - yardline_100))
-        our_total_diff = score_diff
-        drive_points = 0
-
-    # Now resolve the OT from here
-    if possession_num == 1:
-        return _simulate_ot_opponent_response(
-            score_diff + drive_points, drive_points, opp_start if drive_points == 0 else KICKOFF_START,
-            2, is_playoffs, rng
-        )
-    elif possession_num == 2:
-        new_diff = score_diff + drive_points
-        if new_diff > 0:
-            return 1.0
-        elif new_diff < 0:
-            return 0.0
-        else:
-            opp_ball = opp_start if drive_points == 0 else KICKOFF_START
-            return _simulate_sudden_death(0, opp_ball, is_playoffs, rng, our_turn=False)
-    else:
-        # Sudden death
-        if drive_points > 0:
-            return 1.0
-        elif drive_points < 0:
-            return 0.0
-        else:
-            return _simulate_sudden_death(0, opp_start, is_playoffs, rng, our_turn=False)
-
-
-def _simulate_punt(yardline_100, score_diff, possession_num,
-                    opponent_result_points, is_playoffs, rng):
-    """Simulate one trial of punting on 4th down."""
-    opp_start = punt_landing_yardline(yardline_100, rng)
-
-    if possession_num == 1:
-        # Opponent gets ball, we scored 0 on this drive
-        return _simulate_ot_opponent_response(score_diff, 0, opp_start, 2, is_playoffs, rng)
-    elif possession_num == 2:
-        # We punted on 2nd possession
-        if score_diff > 0:
-            # We're already ahead (shouldn't normally happen but handle it)
-            return 1.0
-        elif score_diff < 0:
-            return 0.0
-        else:
-            return _simulate_sudden_death(0, opp_start, is_playoffs, rng, our_turn=False)
-    else:
-        # Sudden death — punting means opponent gets ball
-        return _simulate_sudden_death(0, opp_start, is_playoffs, rng, our_turn=False)
-
-
-def _simulate_field_goal(yardline_100, score_diff, possession_num,
-                          opponent_result_points, is_playoffs, rng):
-    """Simulate one trial of kicking a FG on 4th down."""
-    p_make = fg_make_probability(yardline_100)
-
-    if rng.random() < p_make:
-        # FG is good
-        new_diff = score_diff + 3
-        opp_start = KICKOFF_START
-
-        if possession_num == 1:
-            return _simulate_ot_opponent_response(new_diff, 3, opp_start, 2, is_playoffs, rng)
-        elif possession_num == 2:
-            if new_diff > 0:
-                return 1.0
-            elif new_diff < 0:
-                return 0.0
-            else:
-                return _simulate_sudden_death(0, opp_start, is_playoffs, rng, our_turn=False)
-        else:
-            # Sudden death, FG wins
-            return 1.0
-    else:
-        # Missed FG — opponent gets ball
-        opp_start = max(1, min(99, max(80, 100 - yardline_100)))
-
-        if possession_num == 1:
-            return _simulate_ot_opponent_response(score_diff, 0, opp_start, 2, is_playoffs, rng)
-        elif possession_num == 2:
-            if score_diff > 0:
-                return 1.0
-            elif score_diff < 0:
-                return 0.0
-            else:
-                return _simulate_sudden_death(0, opp_start, is_playoffs, rng, our_turn=False)
-        else:
-            return _simulate_sudden_death(0, opp_start, is_playoffs, rng, our_turn=False)
+    return new
 
 
 def analyze(
@@ -356,32 +69,37 @@ def analyze(
     is_playoffs: bool,
     off_epa: float = 0.0,
     def_epa: float = 0.0,
+    off_success_rate: float = 0.42,
+    off_ppg: float = 23.0,
+    def_success_rate: float = 0.42,
+    def_ppg: float = 23.0,
+    shotgun: int = 1,
+    no_huddle: int = 0,
+    punt_distance_roll6: float = None,
+    inside_twenty_rate_roll6: float = None,
+    is_dome: bool = False,
+    wind: float = 8.0,
+    wind_gust: float = None,
+    temp: float = 65.0,
+    is_precipitation: bool = False,
+    surface_is_grass: bool = True,
+    altitude_ft: float = 0.0,
+    fg_make_rate_roll6: float = None,
+    offense_timeouts: int = 2,
+    defense_timeouts: int = 2,
+    is_home: bool = None,
+    posteam_spread: float = 0.0,
 ) -> dict:
     """
-    Run the full decision analysis.
+    Run the full decision analysis using the analytical expected-value approach.
 
-    Parameters
-    ----------
-    yardline_100 : int
-        Yards from opponent end zone (1-99). E.g. own 20 = 80.
-    yards_to_go : int
-        Yards needed for first down (1-15).
-    score_differential : int
-        Your score minus opponent's score.
-    possession_number : int
-        1, 2, or 3 (3 = sudden death).
-    opponent_result : str or None
-        For 2nd possession: 'td', 'fg', or 'no_score'. None otherwise.
-    is_playoffs : bool
-        True for playoff rules, False for regular season.
-
-    Returns
-    -------
-    dict with win probabilities and recommendation details.
+    Uses 4 trained ML submodels to compute expected win probability for
+    each of the three 4th-down options (go/punt/fg).
     """
-    rng = np.random.default_rng()
+    # Load the WP model
+    wp_model = WinProbabilityModel()
 
-    # Derive score_diff based on possession and opponent result
+    # Derive score diff based on possession and opponent result
     if possession_number == 2 and opponent_result:
         if opponent_result == "td":
             score_differential = -7
@@ -390,41 +108,148 @@ def analyze(
         else:
             score_differential = 0
 
-    # Run simulations
-    go_wins = 0.0
-    punt_wins = 0.0
-    fg_wins = 0.0
+    # Map possession_number to OT possession number (0-indexed for model)
+    ot_poss_num = max(0, possession_number - 1)
 
-    for _ in range(NUM_SIMULATIONS):
-        go_wins += _simulate_go_for_it(
-            yardline_100, yards_to_go, score_differential,
-            possession_number, opponent_result, is_playoffs, rng,
-            off_epa, def_epa
-        )
+    # Build current game state
+    # OT with ~8 minutes assumed (480 seconds)
+    home_val = 0.5 if is_home is None else (1.0 if is_home else 0.0)
+    current_state = {
+        "score_differential": float(score_differential),
+        "quarter": 5,
+        "seconds_remaining": 480.0,
+        "yardline_100": float(yardline_100),
+        "down": 4,
+        "ydstogo": float(yards_to_go),
+        "offense_timeouts": int(offense_timeouts),
+        "defense_timeouts": int(defense_timeouts),
+        "is_overtime": 1,
+        "overtime_possession_number": ot_poss_num,
+        "home": home_val,
+        "posteam_spread": float(posteam_spread),
+        "guaranteed_possession": 1.0,  # 2025 rules: both teams get a possession
+    }
 
-    for _ in range(NUM_SIMULATIONS):
-        punt_wins += _simulate_punt(
-            yardline_100, score_differential,
-            possession_number, opponent_result, is_playoffs, rng
-        )
+    # Clock estimate after play (~8 seconds per play)
+    clock_after = max(10.0, current_state["seconds_remaining"] - 8.0)
 
-    # Only simulate FG if kick distance is realistic (NFL record: 66 yards)
-    fg_distance_check = yardline_100 + 17
-    if fg_distance_check <= 66:
-        for _ in range(NUM_SIMULATIONS):
-            fg_wins += _simulate_field_goal(
-                yardline_100, score_differential,
-                possession_number, opponent_result, is_playoffs, rng
-            )
-        fg_wp = fg_wins / NUM_SIMULATIONS
+    # === SUBMODEL 1: 4th-Down Conversion Probability ===
+    conversion_prob = get_conversion_probability(
+        yards_to_go=yards_to_go,
+        yardline_100=yardline_100,
+        score_differential=score_differential,
+        game_seconds_remaining=current_state["seconds_remaining"],
+        qtr=5,
+        wp=0.5,
+        temp=temp,
+        shotgun=shotgun,
+        no_huddle=no_huddle,
+        off_epa=off_epa,
+        def_epa=def_epa,
+        off_success_rate=off_success_rate,
+        off_ppg=off_ppg,
+        def_success_rate=def_success_rate,
+        def_ppg=def_ppg,
+    )
+
+    # === SUBMODEL 2: Field Goal Make Probability ===
+    fg_distance = yardline_100 + 17
+    fg_available = fg_distance <= 66
+    fg_prob = fg_make_probability(
+        yardline_100=yardline_100,
+        is_dome=is_dome,
+        wind=wind,
+        temp=temp,
+        wind_gust=wind_gust,
+        is_precipitation=is_precipitation,
+        fg_make_rate_roll6=fg_make_rate_roll6,
+        surface_is_grass=surface_is_grass,
+        altitude_ft=altitude_ft,
+        game_seconds_remaining=current_state["seconds_remaining"],
+        score_differential=score_differential,
+        is_overtime=True,
+    ) if fg_available else 0.0
+
+    # === SUBMODEL 3: Punt Outcome ===
+    punt_opp_start = predict_punt_opponent_start(
+        yardline_100=yardline_100,
+        punt_distance_roll6=punt_distance_roll6,
+        inside_twenty_rate_roll6=inside_twenty_rate_roll6,
+    )
+    punt_net = expected_punt_net_yards(
+        yardline_100, punt_distance_roll6, inside_twenty_rate_roll6,
+    )
+
+    # === BUILD POST-PLAY STATES ===
+
+    # GO: success — same team keeps ball, new first down
+    success_state = dict(current_state)
+    new_yl = max(1, yardline_100 - yards_to_go)
+    success_state.update({
+        "yardline_100": float(new_yl),
+        "down": 1,
+        "ydstogo": min(10.0, float(new_yl)),
+        "seconds_remaining": clock_after,
+    })
+
+    # GO: failure — opponent takes over at the spot
+    failure_state = _flip_possession(current_state)
+    failure_state.update({
+        "yardline_100": max(1.0, 100.0 - yardline_100),
+        "down": 1,
+        "ydstogo": 10.0,
+        "seconds_remaining": clock_after,
+    })
+
+    # FG: make — opponent receives kickoff, score adjusted
+    kickoff_yl = _kickoff_touchback_yardline()
+    fg_make_state = _flip_possession(current_state)
+    fg_make_state["score_differential"] = -(score_differential + 3)
+    fg_make_state.update({
+        "yardline_100": kickoff_yl,
+        "down": 1,
+        "ydstogo": 10.0,
+        "seconds_remaining": clock_after,
+    })
+
+    # FG: miss — opponent takes over at line of scrimmage (min own 20)
+    fg_miss_state = _flip_possession(current_state)
+    fg_miss_state.update({
+        "yardline_100": max(80.0, 100.0 - yardline_100),
+        "down": 1,
+        "ydstogo": 10.0,
+        "seconds_remaining": clock_after,
+    })
+
+    # PUNT: opponent receives at predicted landing spot
+    punt_state = _flip_possession(current_state)
+    punt_state.update({
+        "yardline_100": float(punt_opp_start),
+        "down": 1,
+        "ydstogo": 10.0,
+        "seconds_remaining": clock_after,
+    })
+
+    # === SUBMODEL 4: Win Probability — Expected Value Calculation ===
+    # wp_go   = p_conv * wp(success) + (1-p_conv) * [1 - wp(failure)]
+    # wp_fg   = p_make * [1 - wp(make)] + (1-p_make) * [1 - wp(miss)]
+    # wp_punt = 1 - wp(punt)
+
+    wp_success = wp_model.simulate_state(success_state)
+    wp_failure = wp_model.simulate_state(failure_state)
+    wp_fg_make = wp_model.simulate_state(fg_make_state)
+    wp_fg_miss = wp_model.simulate_state(fg_miss_state)
+    wp_punt_opp = wp_model.simulate_state(punt_state)
+
+    go_wp = conversion_prob * wp_success + (1.0 - conversion_prob) * (1.0 - wp_failure)
+    punt_wp = 1.0 - wp_punt_opp
+
+    if fg_available:
+        fg_wp = fg_prob * (1.0 - wp_fg_make) + (1.0 - fg_prob) * (1.0 - wp_fg_miss)
     else:
-        fg_wp = -1.0  # Mark as unavailable
+        fg_wp = -1.0
 
-    go_wp = go_wins / NUM_SIMULATIONS
-    punt_wp = punt_wins / NUM_SIMULATIONS
-
-    # Determine recommendation (exclude FG if out of range)
-    fg_available = fg_wp >= 0
+    # === RECOMMENDATION ===
     options = {"go": go_wp, "punt": punt_wp}
     if fg_available:
         options["fg"] = fg_wp
@@ -440,19 +265,8 @@ def analyze(
     else:
         strength = "Marginal"
 
-    # Calculate display details
-    conversion_prob = get_conversion_probability(yards_to_go, off_epa, def_epa)
-    fg_distance = yardline_100 + 17
-    fg_prob = fg_make_probability(yardline_100) if fg_available else 0.0
-    punt_net = expected_punt_net_yards(yardline_100)
-    punt_landing = yardline_100 - punt_net
-    if punt_landing < 0:
-        punt_landing_display = 20  # touchback, opponent's 20
-    else:
-        punt_landing_display = 100 - (yardline_100 - punt_net)
-        punt_landing_display = max(1, min(99, int(punt_landing_display)))
-
-    # Convert punt landing to readable format
+    # Display details
+    punt_landing_display = int(round(punt_opp_start))
     if punt_landing_display <= 50:
         punt_landing_label = f"opponent's {punt_landing_display}"
     else:
@@ -474,6 +288,13 @@ def analyze(
             "fg_distance": fg_distance,
             "expected_punt_net": round(punt_net, 1),
             "punt_landing_yardline": punt_landing_label,
+        },
+        "submodel_details": {
+            "wp_if_convert": round(wp_success * 100, 1),
+            "wp_if_fail": round((1.0 - wp_failure) * 100, 1),
+            "wp_if_fg_make": round((1.0 - wp_fg_make) * 100, 1),
+            "wp_if_fg_miss": round((1.0 - wp_fg_miss) * 100, 1),
+            "wp_if_punt": round((1.0 - wp_punt_opp) * 100, 1),
         },
         "inputs": {
             "yardline_100": yardline_100,
