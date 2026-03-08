@@ -196,8 +196,8 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("detail-punt").textContent =
             details.punt_landing_yardline;
 
-        // --- Win Probability Comparison Bars ---
-        renderWPBars(wp, rec);
+        // --- Decision Context ---
+        renderDecisionContext(data);
 
         // --- Transparency Panel ---
         renderTransparency(data);
@@ -206,38 +206,74 @@ document.addEventListener("DOMContentLoaded", () => {
         resultsContent.classList.add("active");
     }
 
-    function renderWPBars(wp, rec) {
-        const container = document.getElementById("wp-bars");
-        const options = [
-            { key: "go", label: "Go For It", icon: "\u26A1" },
-            { key: "punt", label: "Punt", icon: "\uD83D\uDC4B" },
-            { key: "fg", label: "Field Goal", icon: "\uD83C\uDFC8" },
-        ];
+    function renderDecisionContext(data) {
+        const container = document.getElementById("decision-context");
+        const wp = data.win_probabilities;
+        const rec = data.recommendation;
+        const details = data.details;
+        const inputs = data.inputs;
+        const margin = data.margin;
+        const fgAvail = data.fg_available;
 
-        // Find max for scaling
-        const values = options.map(o => wp[o.key]).filter(v => v !== null);
-        const maxWP = Math.max(...values, 1);
+        const recLabels = { go: "Go For It", punt: "Punt", fg: "Field Goal" };
+        let html = '<div class="context-title">Decision Context</div>';
 
-        let html = "";
-        options.forEach((opt) => {
-            const val = wp[opt.key];
-            const isRec = opt.key === rec;
-            const unavailable = val === null;
-            const pct = unavailable ? 0 : Math.max(2, (val / maxWP) * 100);
-            const barClass = isRec ? "wp-bar-fill recommended" : "wp-bar-fill";
-            const valText = unavailable ? "N/A" : val.toFixed(1) + "%";
-            const rowClass = unavailable ? "wp-bar-row unavailable" : "wp-bar-row";
+        // 1. Break-even analysis
+        const convProb = details.conversion_probability;
+        if (rec === "go") {
+            const secondBest = wp.punt >= (wp.fg || 0) ? "punting" : "kicking a FG";
+            const secondWP = wp.punt >= (wp.fg || 0) ? wp.punt : wp.fg;
+            html += `<div class="context-item">
+                <div class="context-label">Why go for it wins</div>
+                <div class="context-value">With a <strong>${convProb}%</strong> conversion rate at this distance, the upside of keeping the drive alive outweighs the risk of a turnover on downs. ${secondBest === "punting" ? "Punting" : "A field goal"} yields ${secondWP.toFixed(1)}% — <strong>${margin.toFixed(1)}pp lower</strong>.</div>
+            </div>`;
+        } else if (rec === "punt") {
+            html += `<div class="context-item">
+                <div class="context-label">Why punt wins</div>
+                <div class="context-value">From this deep, pinning the opponent at <strong>${details.punt_landing_yardline}</strong> creates more value than a ${convProb}% conversion gamble. Failing on 4th down here would give the opponent excellent field position.</div>
+            </div>`;
+        } else if (rec === "fg") {
+            html += `<div class="context-item">
+                <div class="context-label">Why field goal wins</div>
+                <div class="context-value">A <strong>${details.fg_make_probability}%</strong> make rate on a ${details.fg_distance}-yard kick gives better expected value than a ${convProb}% conversion attempt. Even a miss leaves the opponent at their 20 — similar to a punt.</div>
+            </div>`;
+        }
 
-            html += `
-                <div class="${rowClass}">
-                    <div class="wp-bar-label">${opt.label}</div>
-                    <div class="wp-bar-track">
-                        <div class="${barClass}" style="width:${pct}%"></div>
-                    </div>
-                    <div class="wp-bar-value ${isRec ? 'recommended' : ''}">${valText}</div>
-                </div>
-            `;
-        });
+        // 2. What would flip the decision
+        html += '<div class="context-item"><div class="context-label">What would change this</div><div class="context-value">';
+        if (rec === "go") {
+            if (fgAvail) {
+                html += `If the conversion rate dropped below ~${Math.max(1, Math.round(convProb - margin/1.5))}%, <span class="warn">field goal</span> would become optimal. `;
+            }
+            html += `Moving ${Math.round(margin * 1.5 + 5)} yards deeper into your own territory would likely flip this to <span class="warn">punt</span>.`;
+        } else if (rec === "punt") {
+            const goGap = (wp.punt - wp.go).toFixed(1);
+            html += `Moving ~${Math.round(parseFloat(goGap) * 2 + 8)} yards closer to the opponent's end zone would make <span class="warn">go for it</span> more attractive. `;
+            if (inputs.yards_to_go > 2) {
+                html += `Shorter yardage (4th & 1 or 2) would also shift toward going for it.`;
+            }
+        } else if (rec === "fg") {
+            html += `If the kick distance were ${details.fg_distance + 10}+ yards, the make probability would drop enough to favor <span class="warn">${wp.go > wp.punt ? "going for it" : "punting"}</span>. `;
+            html += `A shorter distance to go (4th & 1) would also favor going for it.`;
+        }
+        html += '</div></div>';
+
+        // 3. NFL coaching tendency
+        html += '<div class="context-item"><div class="context-label">How NFL coaches typically decide here</div><div class="context-value">';
+        const ytg = inputs.yards_to_go;
+        const yl = inputs.yardline_100;
+        if (yl <= 5) {
+            html += `This close to the end zone, most NFL coaches go for it regardless of distance — the model <strong>${rec === "go" ? "agrees" : "disagrees, favoring " + recLabels[rec].toLowerCase()}</strong>.`;
+        } else if (yl <= 35 && fgAvail) {
+            html += `In FG range, most coaches kick here. The model <strong>${rec === "fg" ? "agrees" : "disagrees — it sees more value in " + recLabels[rec].toLowerCase()}</strong>.`;
+        } else if (yl >= 60) {
+            html += `Deep in their own territory, NFL coaches almost always punt. The model <strong>${rec === "punt" ? "agrees" : "disagrees — the analytics favor " + recLabels[rec].toLowerCase()}</strong>.`;
+        } else if (ytg <= 2) {
+            html += `On 4th & short near midfield, analytics-minded coaches increasingly go for it. The model <strong>${rec === "go" ? "agrees — the conversion rate justifies the risk" : "sees more value in " + recLabels[rec].toLowerCase() + " here"}</strong>.`;
+        } else {
+            html += `Most NFL coaches would punt here. The model <strong>${rec === "punt" ? "agrees with conventional wisdom" : "disagrees — it favors " + recLabels[rec].toLowerCase() + " over the conventional punt"}</strong>.`;
+        }
+        html += '</div></div>';
 
         container.innerHTML = html;
     }

@@ -29,27 +29,30 @@
     <div class="hero-content">
         <h1>NFL OT <span>4th Down</span> Decision Engine</h1>
         <p class="subtitle">UCLA Bruin Sports Analytics</p>
-        <p class="hero-desc">Created by Eshaan Dhavala, Keith Bui, Josh Sujo, Maia Salti, Dillon Maheshwari, Andrew Yang, and Gonzalo Merino Sanchez</p>
-        <div class="hero-stats">
-            <div class="hero-stat">
-                <div class="hero-stat-value">30K</div>
-                <div class="hero-stat-label">Simulations per analysis</div>
+        <p class="hero-credits">Created by Eshaan Dhavala, Abhi Kumar, Keith Bui, Josh Sujo, Maia Salti, Dillon Maheshwari, Andrew Yang, and Gonzalo Merino Sanchez</p>
+
+        <div class="hero-zone-map">
+            <div class="zone-map-label">4th & 3, Tied, 1st Possession — Quick Reference</div>
+            <div class="zone-map-bar">
+                <div class="zone zone-go" style="width:30%">
+                    <span class="zone-text">GO FOR IT</span>
+                </div>
+                <div class="zone zone-fg" style="width:32%">
+                    <span class="zone-text">FIELD GOAL</span>
+                </div>
+                <div class="zone zone-punt" style="width:38%">
+                    <span class="zone-text">PUNT</span>
+                </div>
             </div>
-            <div class="hero-stat-divider"></div>
-            <div class="hero-stat">
-                <div class="hero-stat-value">4</div>
-                <div class="hero-stat-label">ML submodels</div>
+            <div class="zone-map-axis">
+                <span>Opp 1</span>
+                <span>Opp 20</span>
+                <span>Opp 35</span>
+                <span>Midfield</span>
+                <span>Own 35</span>
+                <span>Own 20</span>
             </div>
-            <div class="hero-stat-divider"></div>
-            <div class="hero-stat">
-                <div class="hero-stat-value">350K+</div>
-                <div class="hero-stat-label">NFL plays analyzed</div>
-            </div>
-            <div class="hero-stat-divider"></div>
-            <div class="hero-stat">
-                <div class="hero-stat-value">2016-24</div>
-                <div class="hero-stat-label">Seasons of data</div>
-            </div>
+            <div class="zone-map-note">Optimal decision shifts based on field position, score, and OT phase. Use the tool below for your specific scenario.</div>
         </div>
     </div>
 </header>
@@ -286,11 +289,8 @@
                 </div>
             </div>
 
-            <!-- Win Probability Comparison Bar -->
-            <div class="wp-comparison">
-                <div class="wp-compare-title">Win Probability Comparison</div>
-                <div class="wp-bars" id="wp-bars"></div>
-            </div>
+            <!-- Decision Context -->
+            <div class="decision-context" id="decision-context"></div>
 
             <!-- Simulation Breakdown (transparency) -->
             <div class="transparency-toggle" id="transparency-toggle">

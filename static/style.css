@@ -105,45 +105,81 @@ body {
     text-transform: uppercase;
 }
 
-.hero-desc {
+.hero-credits {
     color: var(--muted);
-    font-size: 0.72rem;
+    font-size: 0.68rem;
     line-height: 1.6;
-    max-width: 520px;
-    margin: 1rem auto 1.5rem;
+    max-width: 580px;
+    margin: 0.75rem auto 1.75rem;
 }
 
-.hero-stats {
+/* Decision Zone Map */
+.hero-zone-map {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.zone-map-label {
+    font-size: 0.6rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 0.5rem;
+}
+
+.zone-map-bar {
+    display: flex;
+    height: 32px;
+    border-radius: 4px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+}
+
+.zone {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 1.5rem;
-    margin-top: 0.5rem;
 }
 
-.hero-stat {
-    text-align: center;
-}
-
-.hero-stat-value {
-    font-size: 1.1rem;
+.zone-text {
+    font-size: 0.6rem;
     font-weight: 700;
-    color: var(--success);
-    line-height: 1;
-}
-
-.hero-stat-label {
-    font-size: 0.55rem;
-    color: var(--muted);
-    margin-top: 0.3rem;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
 }
 
-.hero-stat-divider {
-    width: 1px;
-    height: 28px;
-    background: var(--border);
+.zone-go {
+    background: rgba(0, 255, 136, 0.12);
+    color: var(--success);
+    border-right: 1px solid var(--border);
+}
+
+.zone-fg {
+    background: rgba(255, 204, 0, 0.1);
+    color: #ffcc00;
+    border-right: 1px solid var(--border);
+}
+
+.zone-punt {
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--muted);
+}
+
+.zone-map-axis {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 0.3rem;
+    font-size: 0.5rem;
+    color: var(--muted);
+    opacity: 0.5;
+}
+
+.zone-map-note {
+    font-size: 0.58rem;
+    color: var(--muted);
+    opacity: 0.4;
+    margin-top: 0.6rem;
+    line-height: 1.5;
 }
 
 /* Main Layout */
@@ -769,9 +805,9 @@ select option {
 }
 
 /* ================================================================
-   Win Probability Comparison Bars
+   Decision Context Panel
    ================================================================ */
-.wp-comparison {
+.decision-context {
     background: var(--card-bg);
     border: 1px solid var(--border);
     border-radius: 6px;
@@ -779,64 +815,49 @@ select option {
     margin-top: 0.75rem;
 }
 
-.wp-compare-title {
+.context-title {
     font-size: 0.65rem;
     font-weight: 600;
     color: var(--muted);
     text-transform: uppercase;
     letter-spacing: 0.08em;
     margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
 }
 
-.wp-bar-row {
-    display: grid;
-    grid-template-columns: 80px 1fr 60px;
-    align-items: center;
-    gap: 0.75rem;
-    margin-bottom: 0.6rem;
+.context-item {
+    margin-bottom: 1rem;
 }
 
-.wp-bar-row:last-child {
+.context-item:last-child {
     margin-bottom: 0;
 }
 
-.wp-bar-row.unavailable {
-    opacity: 0.25;
-}
-
-.wp-bar-label {
-    font-size: 0.68rem;
+.context-label {
+    font-size: 0.6rem;
     color: var(--muted);
-    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 0.3rem;
 }
 
-.wp-bar-track {
-    height: 8px;
-    background: var(--border);
-    border-radius: 4px;
-    overflow: hidden;
+.context-value {
+    font-size: 0.75rem;
+    color: var(--text);
+    line-height: 1.6;
 }
 
-.wp-bar-fill {
-    height: 100%;
-    background: #333;
-    border-radius: 4px;
-    transition: width 0.6s ease;
-}
-
-.wp-bar-fill.recommended {
-    background: var(--success);
-}
-
-.wp-bar-value {
-    font-size: 0.72rem;
-    font-weight: 600;
-    color: var(--muted);
-    text-align: right;
-}
-
-.wp-bar-value.recommended {
+.context-value strong {
     color: var(--success);
+}
+
+.context-value .warn {
+    color: #ffcc00;
+}
+
+.context-value .muted {
+    color: var(--muted);
 }
 
 /* ================================================================
