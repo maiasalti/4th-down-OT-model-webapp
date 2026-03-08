@@ -253,6 +253,114 @@
     </div>
 </div>
 
+<!-- About the Model -->
+<section class="about-section">
+    <div class="about-container">
+        <h2 class="about-title">About the Model</h2>
+        <p class="about-intro">
+            This tool recommends whether an NFL coach should <strong>go for it</strong>, <strong>punt</strong>, or attempt a <strong>field goal</strong> on 4th down during overtime. It combines four machine-learning submodels with Monte Carlo simulation to estimate the win probability of each option.
+        </p>
+
+        <!-- How It Works -->
+        <div class="about-block">
+            <h3>How It Works</h3>
+            <p>For each of the three choices, the engine simulates <strong>10,000 game continuations</strong> from the current decision point. Each simulation plays out the rest of overtime play-by-play, using historical NFL probability distributions. The win probability for each option is simply the fraction of simulations where the team wins.</p>
+            <div class="about-formula">Recommendation = the option with the highest simulated win probability</div>
+        </div>
+
+        <!-- The Four Submodels -->
+        <div class="about-block">
+            <h3>The Four Submodels</h3>
+            <div class="submodel-grid">
+                <div class="submodel-card">
+                    <div class="submodel-icon">&#127944;</div>
+                    <h4>Punt Outcome</h4>
+                    <p>Predicts the opponent's starting field position after a punt using an XGBoost Regressor. Trained on all punt attempts from 2016-2024. Uses the current yard line and rolling 6-game punter quality metrics.</p>
+                    <div class="submodel-stat">MAE: 5.91 yards</div>
+                </div>
+                <div class="submodel-card">
+                    <div class="submodel-icon">&#127945;</div>
+                    <h4>Field Goal Probability</h4>
+                    <p>Predicts the probability a field goal attempt is made using a Gradient Boosting Classifier with Platt scaling calibration. Accounts for kick distance, weather, venue, and kicker performance.</p>
+                    <div class="submodel-stat">Calibrated probabilities</div>
+                </div>
+                <div class="submodel-card">
+                    <div class="submodel-icon">&#9889;</div>
+                    <h4>4th Down Conversion</h4>
+                    <p>Predicts the probability of converting a 4th down attempt using an XGBoost Classifier with isotonic calibration. Yards to go is the primary feature, with a monotone constraint enforcing that more yards = lower probability.</p>
+                    <div class="submodel-stat">Monotone-constrained</div>
+                </div>
+                <div class="submodel-card">
+                    <div class="submodel-icon">&#128200;</div>
+                    <h4>Win Probability</h4>
+                    <p>Estimates the probability of winning from any game state using an XGBoost Classifier with isotonic calibration. Trained on 570,000+ regulation plays from 2010-2024. OT plays excluded to avoid rule-change contamination.</p>
+                    <div class="submodel-stat">570K+ training plays</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Monte Carlo Simulation -->
+        <div class="about-block">
+            <h3>Monte Carlo Simulation</h3>
+            <p>After a 4th-down decision, the game doesn't end -- there are dozens of subsequent plays, each with many possible outcomes. The number of possible game continuations grows exponentially, far too many to calculate analytically.</p>
+            <p>Monte Carlo simulation solves this by using randomness to explore the space of possibilities. Think of it like flipping a coin: flip 10 times and you might get 7 heads, but flip 10,000 times and you'll get very close to 50%. The same principle gives us stable, reliable win probability estimates.</p>
+        </div>
+
+        <!-- OT Rules -->
+        <div class="about-block">
+            <h3>NFL Overtime Rules (Post-2022)</h3>
+            <div class="rules-list">
+                <div class="rule-item">
+                    <span class="rule-num">1</span>
+                    <div><strong>Both teams guaranteed a possession.</strong> Even if the first team scores a touchdown, the second team gets a chance to respond.</div>
+                </div>
+                <div class="rule-item">
+                    <span class="rule-num">2</span>
+                    <div><strong>After both possess, sudden death.</strong> If the score is still tied after both teams have had the ball, the next score of any kind wins immediately.</div>
+                </div>
+                <div class="rule-item">
+                    <span class="rule-num">3</span>
+                    <div><strong>Regular season can end in a tie.</strong> If overtime expires with the score tied, the game is a tie. In playoffs, additional periods are played until there's a winner.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Decision Formulas -->
+        <div class="about-block">
+            <h3>Decision Framework</h3>
+            <div class="formula-grid">
+                <div class="formula-item">
+                    <h4>Go For It</h4>
+                    <div class="about-formula">WP = P(convert) x WP(first down) + P(fail) x WP(turnover)</div>
+                    <p>Win probability is the weighted average of converting (continuing the drive) vs. failing (opponent gets the ball at the spot).</p>
+                </div>
+                <div class="formula-item">
+                    <h4>Punt</h4>
+                    <div class="about-formula">WP = WP(opponent starts at predicted punt landing)</div>
+                    <p>Win probability depends on where the punt pins the opponent. Deeper punts mean a worse starting position for the other team.</p>
+                </div>
+                <div class="formula-item">
+                    <h4>Field Goal</h4>
+                    <div class="about-formula">WP = P(make) x WP(+3 pts) + P(miss) x WP(opp at LOS/20)</div>
+                    <p>If made, the team gains 3 points and kicks off. If missed, the opponent gets the ball at the line of scrimmage or the 20, whichever is farther back.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data & Limitations -->
+        <div class="about-block">
+            <h3>Data & Limitations</h3>
+            <p>All models are trained on NFL play-by-play data from the <strong>nfl_data_py</strong> package, spanning 2010-2024 (570,000+ plays). Rolling statistics use a 6-game window for special teams and 15-game window for offense/defense, shifted by 1 game to prevent data leakage.</p>
+            <p><strong>Known limitations:</strong> The punt model tracks team-level stats rather than individual punters. The win probability model is trained on regulation plays only. Weather data may be incomplete for some older games. Rolling averages don't reset at season boundaries.</p>
+        </div>
+
+        <!-- Credit -->
+        <div class="about-credit">
+            <p>Built by <strong>UCLA Bruin Sports Analytics</strong></p>
+        </div>
+    </div>
+</section>
+
 <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>
