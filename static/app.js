@@ -235,6 +235,16 @@ document.addEventListener("DOMContentLoaded", () => {
             if (bar) bar.style.width = (wp[key] === null ? 0 : Math.max(0, Math.min(100, wp[key]))) + "%";
         });
 
+        // Verdict in plain words
+        const callText = { go: "Go for it", punt: "Punt", fg: "Kick the field goal" }[rec];
+        const others = Object.entries(wp).filter(([k, v]) => k !== rec && v !== null).sort((x, y) => y[1] - x[1]);
+        const otherName = { go: "going for it", punt: "punting", fg: "kicking" }[others[0][0]];
+        document.getElementById("verdict-call").textContent = callText;
+        document.getElementById("verdict-sub").textContent =
+            `${wp[rec].toFixed(0)}% chance to win · ${data.margin.toFixed(1)} points better than ${otherName}` +
+            (data.recommendation_strength === "Marginal" ? " (close call)" : "");
+        document.querySelector(".verdict").dataset.call = rec;
+
         // Strength
         const strengthEl = document.getElementById("strength-value");
         strengthEl.textContent =

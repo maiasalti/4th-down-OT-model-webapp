@@ -17,7 +17,7 @@
 <header class="header">
     <div class="hero-content">
         <h1>4th down in overtime: <span>go, punt, or kick?</span></h1>
-        <p class="lede">Set the situation. Four models estimate your win probability for each choice.</p>
+        <p class="lede">Pick the field position and score. We estimate your chance of winning for each option and tell you the best call.</p>
         <details class="credits"><summary>UCLA Bruin Sports Analytics · 8 builders</summary><p>Eshaan Dhavala, Abhi Kumar, Keith Bui, Josh Sujo, Maia Salti, Dillon Maheshwari, Andrew Yang, Gonzalo Merino Sanchez</p></details>
     </div>
 </header>
@@ -27,7 +27,7 @@
 
     <!-- Input Panel -->
     <div class="input-panel">
-        <h2>Game Situation</h2>
+        <h2>The situation</h2>
         <form id="analysis-form">
 
             <!-- Tab bar -->
@@ -326,6 +326,12 @@
         <div class="results-content" id="results-content">
 
             <!-- Decision Cards -->
+            <div class="verdict" aria-live="polite">
+                <p class="verdict-label">Best call</p>
+                <h2 class="verdict-call" id="verdict-call">–</h2>
+                <p class="verdict-sub" id="verdict-sub"></p>
+            </div>
+
             <div class="cards-row">
                 <!-- Go For It -->
                 <div class="decision-card" id="card-go">
