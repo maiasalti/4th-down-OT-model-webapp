@@ -6,54 +6,19 @@
     <title>NFL OT 4th Down Decision Engine</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;1,800&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+    <meta name="description" content="Go for it, punt, or kick? Win probability for every 4th-down option in NFL overtime.">
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
 
 <!-- Header -->
 <header class="header">
-    <div class="hero-field">
-        <div class="hero-yard-line" style="left:10%"></div>
-        <div class="hero-yard-line" style="left:20%"></div>
-        <div class="hero-yard-line" style="left:30%"></div>
-        <div class="hero-yard-line" style="left:40%"></div>
-        <div class="hero-yard-line hero-midfield" style="left:50%"></div>
-        <div class="hero-yard-line" style="left:60%"></div>
-        <div class="hero-yard-line" style="left:70%"></div>
-        <div class="hero-yard-line" style="left:80%"></div>
-        <div class="hero-yard-line" style="left:90%"></div>
-        <div class="hero-hash-top"></div>
-        <div class="hero-hash-bottom"></div>
-    </div>
     <div class="hero-content">
-        <h1>NFL OT <span>4th Down</span> Decision Engine</h1>
-        <p class="subtitle">UCLA Bruin Sports Analytics</p>
-        <p class="hero-credits">Created by Eshaan Dhavala, Abhi Kumar, Keith Bui, Josh Sujo, Maia Salti, Dillon Maheshwari, Andrew Yang, and Gonzalo Merino Sanchez</p>
-
-        <div class="hero-zone-map">
-            <div class="zone-map-label">4th & 3, Tied, 1st Possession — Quick Reference</div>
-            <div class="zone-map-bar">
-                <div class="zone zone-go" style="width:30%">
-                    <span class="zone-text">GO FOR IT</span>
-                </div>
-                <div class="zone zone-fg" style="width:32%">
-                    <span class="zone-text">FIELD GOAL</span>
-                </div>
-                <div class="zone zone-punt" style="width:38%">
-                    <span class="zone-text">PUNT</span>
-                </div>
-            </div>
-            <div class="zone-map-axis">
-                <span>Opp 1</span>
-                <span>Opp 20</span>
-                <span>Opp 35</span>
-                <span>Midfield</span>
-                <span>Own 35</span>
-                <span>Own 20</span>
-            </div>
-            <div class="zone-map-note">Optimal decision shifts based on field position, score, and OT phase. Use the tool below for your specific scenario.</div>
-        </div>
+        <h1>4th down in overtime: <span>go, punt, or kick?</span></h1>
+        <p class="lede">Set the situation. Four models estimate your win probability for each choice.</p>
+        <details class="credits"><summary>UCLA Bruin Sports Analytics · 8 builders</summary><p>Eshaan Dhavala, Abhi Kumar, Keith Bui, Josh Sujo, Maia Salti, Dillon Maheshwari, Andrew Yang, Gonzalo Merino Sanchez</p></details>
     </div>
 </header>
 
@@ -341,7 +306,7 @@
                 </div>
             </div>
 
-            <button type="submit" class="analyze-btn" id="analyze-btn">ANALYZE</button>
+            <button type="submit" class="analyze-btn" id="analyze-btn">Update</button>
         </form>
     </div>
 
@@ -349,15 +314,12 @@
     <div class="results-panel">
 
         <!-- Placeholder -->
-        <div class="results-placeholder" id="results-placeholder">
-            <div class="icon">&#127944;</div>
-            <p>Set the game situation and hit <strong>ANALYZE</strong> to evaluate the optimal 4th-down decision.</p>
-        </div>
+        <div class="results-placeholder" id="results-placeholder"><p>Loading the models…</p></div>
 
         <!-- Loading -->
         <div class="loading" id="loading">
             <div class="spinner"></div>
-            <p>Running 4 ML submodels...</p>
+            <p>Updating…</p>
         </div>
 
         <!-- Results Content -->
@@ -368,35 +330,32 @@
                 <!-- Go For It -->
                 <div class="decision-card" id="card-go">
                     <div class="recommended-badge">RECOMMENDED</div>
-                    <div class="card-icon">&#9889;</div>
                     <div class="card-title">Go For It</div>
                     <div class="win-prob" id="prob-go">--</div>
-                    <div class="win-label">Win Probability</div>
+                    <div class="win-label">win probability</div><div class="win-bar"><i></i></div>
                 </div>
 
                 <!-- Punt -->
                 <div class="decision-card" id="card-punt">
                     <div class="recommended-badge">RECOMMENDED</div>
-                    <div class="card-icon">&#128075;</div>
                     <div class="card-title">Punt</div>
                     <div class="win-prob" id="prob-punt">--</div>
-                    <div class="win-label">Win Probability</div>
+                    <div class="win-label">win probability</div><div class="win-bar"><i></i></div>
                 </div>
 
                 <!-- Field Goal -->
                 <div class="decision-card" id="card-fg">
                     <div class="recommended-badge">RECOMMENDED</div>
-                    <div class="card-icon">&#127945;</div>
                     <div class="card-title">Field Goal</div>
                     <div class="win-prob" id="prob-fg">--</div>
-                    <div class="win-label">Win Probability</div>
+                    <div class="win-label">win probability</div><div class="win-bar"><i></i></div>
                 </div>
             </div>
 
             <!-- Meta -->
             <div class="result-meta">
                 <div class="strength-row">
-                    <span class="strength-label">Recommendation strength:</span>
+                    <span class="strength-label">Edge</span>
                     <span class="strength-value" id="strength-value">--</span>
                 </div>
                 <div class="details-grid">
@@ -415,21 +374,16 @@
                 </div>
             </div>
 
-            <!-- Decision Context -->
-            <div class="decision-context" id="decision-context"></div>
+            <!-- Breakdown: real numbers from the submodels -->
+            <div class="breakdown" id="decision-context"></div>
 
-            <!-- Model Breakdown (transparency) -->
-            <div class="transparency-toggle" id="transparency-toggle">
-                <span class="arrow">&#9654;</span> Show how this was calculated
+            <!-- Same situation across the whole field -->
+            <div class="sweep">
+                <div class="sweep-head"><span>Same situation, anywhere on the field</span><span class="sweep-legend"><i class="lg go"></i>Go <i class="lg fg"></i>FG <i class="lg punt"></i>Punt</span></div>
+                <div class="sweep-strip" id="sweep-strip"></div>
+                <div class="sweep-axis"><span>Opp goal</span><span>Opp 25</span><span>50</span><span>Own 25</span><span>Own goal</span></div>
             </div>
-            <div class="transparency-panel" id="transparency-panel">
-                <div class="transparency-header">Model Breakdown</div>
-                <div class="transparency-scenario" id="transparency-scenario"></div>
-                <div class="transparency-steps" id="transparency-steps"></div>
-                <div class="transparency-footer">
-                    Win probabilities are computed analytically using 4 trained ML submodels. The WP model evaluates the expected outcome of each decision by weighting the post-play states by their probability of occurring.
-                </div>
-            </div>
+            <div id="transparency-toggle" hidden></div><div id="transparency-panel" hidden><div id="transparency-scenario"></div><div id="transparency-steps"></div></div>
 
         </div>
     </div>
@@ -438,101 +392,24 @@
 <!-- About the Model -->
 <section class="about-section">
     <div class="about-container">
-        <h2 class="about-title">About the Model</h2>
-        <p class="about-intro">
-            This tool recommends whether an NFL coach should <strong>go for it</strong>, <strong>punt</strong>, or attempt a <strong>field goal</strong> on 4th down during overtime. It combines four trained XGBoost ML submodels with expected-value maximisation to estimate the win probability of each option.
-        </p>
-
-        <!-- How It Works -->
-        <div class="about-block">
-            <h3>How It Works</h3>
-            <p>For each of the three choices, the engine constructs the <strong>post-play game state</strong> (e.g. after a successful conversion, missed FG, or punt) and uses the Win Probability model to evaluate each outcome. The expected win probability is the probability-weighted combination of all possible outcomes for each decision.</p>
-            <div class="about-formula">Recommendation = argmax(WP_go, WP_fg, WP_punt)</div>
+        <h2 class="about-title">How it works</h2>
+        <p class="about-intro">For each choice, the engine builds the game state that follows (converted, failed, kick made, kick missed, punted) and scores it with a win-probability model. The best choice is the one with the highest expected win probability.</p>
+        <div class="models">
+            <div class="m"><b>4th-down conversion</b><span>XGBoost, calibrated, monotone in yards to go</span></div>
+            <div class="m"><b>Field goal</b><span>XGBoost, calibrated; held-out AUC 0.78</span></div>
+            <div class="m"><b>Punt landing</b><span>XGBoost regressor; MAE 5.9 yd</span></div>
+            <div class="m"><b>Win probability</b><span>XGBoost on 350K+ plays, 2016–2024</span></div>
         </div>
-
-        <!-- The Four Submodels -->
-        <div class="about-block">
-            <h3>The Four Submodels</h3>
-            <div class="submodel-grid">
-                <div class="submodel-card">
-                    <div class="submodel-icon">&#127944;</div>
-                    <h4>Punt Outcome</h4>
-                    <p>Predicts the opponent's starting field position after a punt using an XGBoost Regressor. Trained on all punt attempts from 2016-2024. Uses the current yard line and rolling 6-game punter quality metrics.</p>
-                    <div class="submodel-stat">MAE: 5.91 yards</div>
-                </div>
-                <div class="submodel-card">
-                    <div class="submodel-icon">&#127945;</div>
-                    <h4>Field Goal Probability</h4>
-                    <p>Predicts the probability a field goal attempt is made using an XGBoost Classifier with isotonic calibration. Accounts for kick distance, weather, venue, and kicker performance across 15 features.</p>
-                    <div class="submodel-stat">Calibrated probabilities</div>
-                </div>
-                <div class="submodel-card">
-                    <div class="submodel-icon">&#9889;</div>
-                    <h4>4th Down Conversion</h4>
-                    <p>Predicts the probability of converting a 4th down attempt using an XGBoost Classifier with isotonic calibration and empirical blending. Uses 15 features including rolling team stats, with monotone constraints enforcing that more yards = lower probability.</p>
-                    <div class="submodel-stat">Monotone-constrained</div>
-                </div>
-                <div class="submodel-card">
-                    <div class="submodel-icon">&#128200;</div>
-                    <h4>Win Probability</h4>
-                    <p>Estimates the probability of winning from any game state using an XGBoost Classifier with isotonic calibration. Trained on 350,000+ regulation plays from 2016-2024. OT plays excluded to avoid rule-change contamination; OT inference handled via a state transformer.</p>
-                    <div class="submodel-stat">350K+ training plays</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Decision Formulas -->
-        <div class="about-block">
-            <h3>Decision Framework</h3>
-            <div class="formula-grid">
-                <div class="formula-item">
-                    <h4>Go For It</h4>
-                    <div class="about-formula">WP = P(convert) &times; WP(1st down) + P(fail) &times; [1 &minus; WP(opp at spot)]</div>
-                    <p>Win probability is the weighted average of converting (continuing the drive) vs. failing (opponent gets the ball at the spot).</p>
-                </div>
-                <div class="formula-item">
-                    <h4>Punt</h4>
-                    <div class="about-formula">WP = 1 &minus; WP(opponent at predicted punt landing)</div>
-                    <p>Win probability depends on where the punt pins the opponent. Deeper punts mean a worse starting position for the other team.</p>
-                </div>
-                <div class="formula-item">
-                    <h4>Field Goal</h4>
-                    <div class="about-formula">WP = P(make) &times; [1 &minus; WP(opp kickoff)] + P(miss) &times; [1 &minus; WP(opp at spot)]</div>
-                    <p>If made, the team gains 3 points and kicks off. If missed, the opponent gets the ball at the line of scrimmage or the 20, whichever is farther back.</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- OT Rules -->
-        <div class="about-block">
-            <h3>NFL Overtime Rules (Post-2022)</h3>
-            <div class="rules-list">
-                <div class="rule-item">
-                    <span class="rule-num">1</span>
-                    <div><strong>Both teams guaranteed a possession.</strong> Even if the first team scores a touchdown, the second team gets a chance to respond.</div>
-                </div>
-                <div class="rule-item">
-                    <span class="rule-num">2</span>
-                    <div><strong>After both possess, sudden death.</strong> If the score is still tied after both teams have had the ball, the next score of any kind wins immediately.</div>
-                </div>
-                <div class="rule-item">
-                    <span class="rule-num">3</span>
-                    <div><strong>Regular season can end in a tie.</strong> If overtime expires with the score tied, the game is a tie. In playoffs, additional periods are played until there's a winner.</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Data & Limitations -->
-        <div class="about-block">
-            <h3>Data & Limitations</h3>
-            <p>All models are trained on NFL play-by-play data from the <strong>nfl_data_py</strong> package, spanning 2016-2024 (350,000+ plays). Rolling statistics use a 6-game window for special teams and 15-game window for offense/defense, shifted by 1 game to prevent data leakage.</p>
-            <p><strong>Known limitations:</strong> The punt model tracks team-level stats rather than individual punters. The win probability model is trained on regulation plays only; OT inference is handled by mapping OT states to regulation-equivalent states. Weather data may be incomplete for some older games.</p>
-        </div>
-
-        <!-- Credit -->
-        <div class="about-credit">
-            <p>Built by <strong>UCLA Bruin Sports Analytics</strong></p>
-        </div>
+        <details class="about-more">
+            <summary>Rules, method, and limits</summary>
+            <ul>
+                <li>Post-2022 overtime: both teams get the ball; after that, the next score wins.</li>
+                <li>Missed field goals give the opponent the ball at the spot of the kick, or their 20 if that is closer to their goal.</li>
+                <li>The field-goal model is constrained so a longer kick or stronger wind never helps, and is tapered past 57 yards where data is thin.</li>
+                <li>The win-probability model is trained on regulation plays; overtime states are mapped onto regulation equivalents. It changes little once a team is pinned inside its own 30.</li>
+                <li>Punt quality uses team-level, not punter-level, stats.</li>
+            </ul>
+        </details>
     </div>
 </section>
 

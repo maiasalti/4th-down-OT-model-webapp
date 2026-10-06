@@ -222,9 +222,18 @@ def fg_make_probability(
     if fg_make_rate_roll6 is None:
         fg_make_rate_roll6 = _LEAGUE_AVG_FG_BY_BUCKET.get(bucket, 0.80)
 
+    # Past ~57 yd the trees have almost no data and go flat. Hold the features at the
+    # anchor distance and taper with the logit slope fitted at training time.
+    tail_slope = artifact.get("tail_slope")
+    anchor = 57.0
+    over = max(0.0, float(distance) - anchor) if tail_slope else 0.0
+    model_distance = min(float(distance), anchor) if tail_slope else float(distance)
+    wind_gust_x_distance = wind_gust_val * model_distance
+    temp_x_distance = temp_adj * model_distance
+
     # Feature order must match FEATURE_COLS exactly (15 features)
     X = np.array([[
-        float(distance),
+        model_distance,
         int(is_dome),
         wind_gust_val,
         wind_gust_x_distance,
@@ -232,8 +241,8 @@ def fg_make_probability(
         temp_x_distance,
         int(is_precipitation and not is_dome),
         float(fg_make_rate_roll6),
-        float(fg_make_rate_roll6),  # career rate fallback = rolling rate
-        30,  # career attempts fallback
+        float(_LEAGUE_AVG_FG_BY_BUCKET.get(bucket, 0.80)),  # career rate: league avg for this distance
+        60,  # career attempts: typical veteran sample
         int(surface_is_grass),
         float(altitude_ft),
         float(game_seconds_remaining),
@@ -241,7 +250,11 @@ def fg_make_probability(
         int(is_overtime),
     ]])
 
-    return float(model.predict_proba(X)[0, 1])
+    p = float(np.clip(model.predict_proba(X)[0, 1], 1e-4, 1 - 1e-4))
+    if over:
+        logit = np.log(p / (1 - p)) + float(tail_slope) * over
+        p = float(1 / (1 + np.exp(-logit)))
+    return p
 
 
 # ---------------------------------------------------------------------------
