@@ -1431,3 +1431,55 @@ h1, h2, .about-title, .card-title, .input-panel h2 { font-family: 'Barlow Conden
     .decision-card .win-label { display: none; }
     .recommended-badge { font-size: 0.55rem; }
 }
+
+/* ==========================================================================
+   Round 2: light, plain, answer first
+   ========================================================================== */
+:root {
+    --bg: #f5f4f0;
+    --card-bg: #ffffff;
+    --input-bg: #ffffff;
+    --border: #dfddd6;
+    --hover: #f0efea;
+    --text: #15181d;
+    --muted: #5e646e;
+    --go: #2f8a58;
+    --fg: #b8860b;
+    --punt: #5b6b82;
+    --accent: #15181d;
+}
+body { background: var(--bg); color: var(--text); }
+.header { background: #15181d; color: #f5f4f0; border-bottom: 0; }
+.header .lede, .credits { color: #b9bec7; }
+.header h1 span { color: #6fd39b; }
+.input-panel { background: var(--card-bg); border: 1px solid var(--border); box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+.input-panel h2 { color: var(--text); }
+.input-panel label, .input-panel .field-label, .settings-tab { color: var(--muted); }
+.input-panel input, .input-panel select { background: var(--input-bg); color: var(--text); border-color: var(--border); }
+.settings-tab.active { color: var(--text); background: var(--hover); }
+.yard-display { color: var(--text); }
+.analyze-btn { background: var(--text); color: #fff; }
+.verdict { padding: 1.4rem 1.5rem; border-radius: 14px; background: var(--text); color: #fff; margin-bottom: 1rem; border-left: 0; }
+.verdict-label { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: #b9bec7; }
+.verdict-call { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: clamp(2.2rem, 4vw, 3.2rem); text-transform: uppercase; line-height: 1; margin: 0.2rem 0 0.4rem; }
+.verdict[data-call="go"] .verdict-call { color: #6fd39b; }
+.verdict[data-call="fg"] .verdict-call { color: #f2c75c; }
+.verdict[data-call="punt"] .verdict-call { color: #a9b8cc; }
+.verdict-sub { color: #dfe3e8; font-size: 1.05rem; }
+.decision-card, .breakdown, .sweep, .result-meta, .models .m { background: var(--card-bg); border-color: var(--border); }
+.decision-card .win-prob, .decision-card.recommended .win-prob { color: var(--text); }
+.decision-card.recommended { border: 2px solid var(--text); background: var(--card-bg); }
+.recommended-badge { background: var(--text); color: #fff; }
+.result-meta { display: none; }
+.bd-row.is-rec { background: var(--hover); box-shadow: inset 3px 0 0 var(--text); }
+.win-bar { background: var(--hover); }
+.sweep-strip .cell.here { box-shadow: inset 0 0 0 3px var(--text); }
+.about-section { background: var(--bg); border-top: 1px solid var(--border); }
+.about-title, .about-more summary { color: var(--text); }
+.about-intro, .about-more, .models .m span { color: var(--muted); }
+.results-placeholder { color: var(--muted); }
+.header h1 { color: #f5f4f0; }
+.radio-btn label { color: var(--muted); background: var(--card-bg); border-color: var(--border); }
+.radio-btn input:checked + label { background: var(--text); color: #fff; border-color: var(--text); }
+input[type="range"] { background: var(--border); }
+input[type="range"]::-webkit-slider-thumb { background: var(--text); }
