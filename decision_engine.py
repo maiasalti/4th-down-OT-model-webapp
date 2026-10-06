@@ -212,10 +212,11 @@ def analyze(
         "seconds_remaining": clock_after,
     })
 
-    # FG: miss — opponent takes over at line of scrimmage (min own 20)
+    # FG: miss — NFL rule: opponent takes over at the spot of the kick (~7 yd behind the
+    # line of scrimmage), or at their own 20 if that spot is inside the 20.
     fg_miss_state = _flip_possession(current_state)
     fg_miss_state.update({
-        "yardline_100": max(80.0, 100.0 - yardline_100),
+        "yardline_100": min(80.0, 100.0 - (yardline_100 + 7)),
         "down": 1,
         "ydstogo": 10.0,
         "seconds_remaining": clock_after,
@@ -237,7 +238,9 @@ def analyze(
 
     wp_success = wp_model.simulate_state(success_state)
     wp_failure = wp_model.simulate_state(failure_state)
-    wp_fg_make = wp_model.simulate_state(fg_make_state)
+    # Sudden death (3rd+ OT possession): any score ends the game.
+    sudden_death = possession_number >= 3
+    wp_fg_make = 0.0 if sudden_death else wp_model.simulate_state(fg_make_state)
     wp_fg_miss = wp_model.simulate_state(fg_miss_state)
     wp_punt_opp = wp_model.simulate_state(punt_state)
 

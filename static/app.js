@@ -68,11 +68,16 @@ document.addEventListener("DOMContentLoaded", () => {
         transPanel.classList.toggle("visible");
     });
 
-    // --- Analyze ---
+    // --- Analyze: live as inputs change ---
+    let requestId = 0;
+    let debounceTimer;
+    const scheduleAnalysis = () => { clearTimeout(debounceTimer); debounceTimer = setTimeout(runAnalysis, 280); };
     form.addEventListener("submit", async (e) => {
         e.preventDefault();
         await runAnalysis();
     });
+    form.addEventListener("input", scheduleAnalysis);
+    form.addEventListener("change", scheduleAnalysis);
 
     async function runAnalysis() {
         const yardline_100 = parseInt(yardSlider.value);
@@ -168,16 +173,9 @@ document.addEventListener("DOMContentLoaded", () => {
             altitude_ft,
         };
 
-        // Show loading
-        placeholder.style.display = "none";
-        resultsContent.classList.remove("active");
-        loadingEl.classList.add("active");
-        analyzeBtn.disabled = true;
-        analyzeBtn.textContent = "ANALYZING...";
-
-        // Reset transparency
-        transToggle.classList.remove("open");
-        transPanel.classList.remove("visible");
+        // Keep the last result on screen while updating
+        resultsContent.classList.add("updating");
+        const ticket = ++requestId;
 
         try {
             const resp = await fetch("/api/analyze", {
@@ -192,14 +190,14 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             const data = await resp.json();
+            if (ticket !== requestId) return; // a newer request is on its way
+            placeholder.style.display = "none";
             renderResults(data);
         } catch (err) {
-            alert("Analysis failed: " + err.message);
             placeholder.style.display = "flex";
+            placeholder.innerHTML = "<p>Couldn’t reach the models (" + err.message + "). The free server may be waking up; try again in a few seconds.</p>";
         } finally {
-            loadingEl.classList.remove("active");
-            analyzeBtn.disabled = false;
-            analyzeBtn.textContent = "ANALYZE";
+            if (ticket === requestId) resultsContent.classList.remove("updating");
         }
     }
 
@@ -233,13 +231,14 @@ document.addEventListener("DOMContentLoaded", () => {
             } else {
                 probs[key].textContent = wp[key].toFixed(1) + "%";
             }
+            const bar = cards[key].querySelector(".win-bar i");
+            if (bar) bar.style.width = (wp[key] === null ? 0 : Math.max(0, Math.min(100, wp[key]))) + "%";
         });
 
         // Strength
         const strengthEl = document.getElementById("strength-value");
         strengthEl.textContent =
-            data.recommendation_strength +
-            ` (${data.margin.toFixed(1)}pp margin)`;
+            `${data.recommendation_strength} · +${data.margin.toFixed(1)} pts over the next best`;
         strengthEl.className = "strength-value";
         if (data.recommendation_strength === "Strong") {
             strengthEl.classList.add("strong");
@@ -262,83 +261,47 @@ document.addEventListener("DOMContentLoaded", () => {
         // --- Decision Context ---
         renderDecisionContext(data);
 
-        // --- Transparency Panel ---
-        renderTransparency(data);
+        renderSweep(data);
 
         // Show
         resultsContent.classList.add("active");
     }
 
     function renderDecisionContext(data) {
-        const container = document.getElementById("decision-context");
-        const wp = data.win_probabilities;
-        const rec = data.recommendation;
-        const details = data.details;
-        const inputs = data.inputs;
-        const margin = data.margin;
-        const fgAvail = data.fg_available;
-
-        const recLabels = { go: "Go For It", punt: "Punt", fg: "Field Goal" };
-        let html = '<div class="context-title">Decision Context</div>';
-
-        // 1. Break-even analysis
-        const convProb = details.conversion_probability;
-        if (rec === "go") {
-            const secondBest = wp.punt >= (wp.fg || 0) ? "punting" : "kicking a FG";
-            const secondWP = wp.punt >= (wp.fg || 0) ? wp.punt : wp.fg;
-            html += `<div class="context-item">
-                <div class="context-label">Why go for it wins</div>
-                <div class="context-value">With a <strong>${convProb}%</strong> conversion rate at this distance, the upside of keeping the drive alive outweighs the risk of a turnover on downs. ${secondBest === "punting" ? "Punting" : "A field goal"} yields ${secondWP.toFixed(1)}% — <strong>${margin.toFixed(1)}pp lower</strong>.</div>
+        // Only numbers the submodels actually produced; no rules of thumb.
+        const c = document.getElementById("decision-context");
+        const d = data.details, sd = data.submodel_details, wp = data.win_probabilities, rec = data.recommendation;
+        const pct = (v) => (v === null || v === undefined ? "–" : v.toFixed(1) + "%");
+        const row = (key, name, chance, a, b) => `
+            <div class="bd-row ${key === rec ? "is-rec" : ""}">
+                <div class="bd-name">${name}</div>
+                <div class="bd-cell" data-label="Chance">${chance}</div>
+                <div class="bd-cell" data-label="Win % if it works">${pct(a)}</div>
+                <div class="bd-cell" data-label="Win % if not">${b === null ? "–" : pct(b)}</div>
             </div>`;
-        } else if (rec === "punt") {
-            html += `<div class="context-item">
-                <div class="context-label">Why punt wins</div>
-                <div class="context-value">From this deep, pinning the opponent at <strong>${details.punt_landing_yardline}</strong> creates more value than a ${convProb}% conversion gamble. Failing on 4th down here would give the opponent excellent field position.</div>
-            </div>`;
-        } else if (rec === "fg") {
-            html += `<div class="context-item">
-                <div class="context-label">Why field goal wins</div>
-                <div class="context-value">A <strong>${details.fg_make_probability}%</strong> make rate on a ${details.fg_distance}-yard kick gives better expected value than a ${convProb}% conversion attempt. Even a miss leaves the opponent at their 20 — similar to a punt.</div>
-            </div>`;
-        }
+        let html = '<div class="bd-row bd-head"><div>Choice</div><div>Chance it works</div><div>Win % if it works</div><div>Win % if not</div></div>';
+        html += row("go", "Go for it", pct(d.conversion_probability), sd.wp_if_convert, sd.wp_if_fail);
+        html += data.fg_available
+            ? row("fg", `Field goal <small>${d.fg_distance} yd</small>`, pct(d.fg_make_probability), sd.wp_if_fg_make, sd.wp_if_fg_miss)
+            : `<div class="bd-row off"><div class="bd-name">Field goal <small>${d.fg_distance} yd</small></div><div class="bd-cell" data-label="">Out of range</div></div>`;
+        html += row("punt", "Punt", `lands at ${d.punt_landing_yardline}`, sd.wp_if_punt, null);
+        c.innerHTML = html;
+    }
 
-        // 2. What would flip the decision
-        html += '<div class="context-item"><div class="context-label">What would change this</div><div class="context-value">';
-        if (rec === "go") {
-            if (fgAvail) {
-                html += `If the conversion rate dropped below ~${Math.max(1, Math.round(convProb - margin/1.5))}%, <span class="warn">field goal</span> would become optimal. `;
-            }
-            html += `Moving ${Math.round(margin * 1.5 + 5)} yards deeper into your own territory would likely flip this to <span class="warn">punt</span>.`;
-        } else if (rec === "punt") {
-            const goGap = (wp.punt - wp.go).toFixed(1);
-            html += `Moving ~${Math.round(parseFloat(goGap) * 2 + 8)} yards closer to the opponent's end zone would make <span class="warn">go for it</span> more attractive. `;
-            if (inputs.yards_to_go > 2) {
-                html += `Shorter yardage (4th & 1 or 2) would also shift toward going for it.`;
-            }
-        } else if (rec === "fg") {
-            html += `If the kick distance were ${details.fg_distance + 10}+ yards, the make probability would drop enough to favor <span class="warn">${wp.go > wp.punt ? "going for it" : "punting"}</span>. `;
-            html += `A shorter distance to go (4th & 1) would also favor going for it.`;
-        }
-        html += '</div></div>';
-
-        // 3. NFL coaching tendency
-        html += '<div class="context-item"><div class="context-label">How NFL coaches typically decide here</div><div class="context-value">';
-        const ytg = inputs.yards_to_go;
-        const yl = inputs.yardline_100;
-        if (yl <= 5) {
-            html += `This close to the end zone, most NFL coaches go for it regardless of distance — the model <strong>${rec === "go" ? "agrees" : "disagrees, favoring " + recLabels[rec].toLowerCase()}</strong>.`;
-        } else if (yl <= 35 && fgAvail) {
-            html += `In FG range, most coaches kick here. The model <strong>${rec === "fg" ? "agrees" : "disagrees — it sees more value in " + recLabels[rec].toLowerCase()}</strong>.`;
-        } else if (yl >= 60) {
-            html += `Deep in their own territory, NFL coaches almost always punt. The model <strong>${rec === "punt" ? "agrees" : "disagrees — the analytics favor " + recLabels[rec].toLowerCase()}</strong>.`;
-        } else if (ytg <= 2) {
-            html += `On 4th & short near midfield, analytics-minded coaches increasingly go for it. The model <strong>${rec === "go" ? "agrees — the conversion rate justifies the risk" : "sees more value in " + recLabels[rec].toLowerCase() + " here"}</strong>.`;
-        } else {
-            html += `Most NFL coaches would punt here. The model <strong>${rec === "punt" ? "agrees with conventional wisdom" : "disagrees — it favors " + recLabels[rec].toLowerCase() + " over the conventional punt"}</strong>.`;
-        }
-        html += '</div></div>';
-
-        container.innerHTML = html;
+    function renderSweep(data) {
+        const strip = document.getElementById("sweep-strip");
+        if (!data.sweep) return;
+        const here = data.inputs.yardline_100;
+        strip.innerHTML = data.sweep.map((s) => {
+            const label = s.yardline_100 === 50 ? "midfield" : s.yardline_100 < 50 ? `opp ${s.yardline_100}` : `own ${100 - s.yardline_100}`;
+            const name = { go: "Go for it", fg: "Field goal", punt: "Punt" }[s.recommendation];
+            return `<button type="button" class="cell ${s.recommendation} ${Math.abs(s.yardline_100 - here) <= 1 ? "here" : ""}" data-yl="${s.yardline_100}" title="${label}: ${name}" aria-label="${label}: ${name}"></button>`;
+        }).join("");
+        strip.querySelectorAll(".cell").forEach((b) => b.addEventListener("click", () => {
+            yardSlider.value = b.dataset.yl;
+            updateYardDisplay();
+            runAnalysis();
+        }));
     }
 
     function renderTransparency(data) {
@@ -443,4 +406,5 @@ document.addEventListener("DOMContentLoaded", () => {
 
         stepsEl.innerHTML = stepsHTML;
     }
+    runAnalysis();
 });
