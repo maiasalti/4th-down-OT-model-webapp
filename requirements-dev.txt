@@ -1,0 +1,6 @@
+# Training / export tools in tools/ (not needed by the server).
+-r requirements.txt
+pandas==2.2.2
+pyarrow
+scikit-learn==1.5.1
+joblib==1.4.2

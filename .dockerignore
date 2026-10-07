@@ -1,5 +1,6 @@
 .git
 .gitignore
+.github
 __pycache__
 *.pyc
 .venv
@@ -7,3 +8,5 @@ __pycache__
 *.ipynb
 README.md
 .DS_Store
+tools
+requirements-dev.txt

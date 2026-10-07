@@ -1,0 +1,76 @@
+{
+ "features": [
+  "score_differential",
+  "quarter",
+  "seconds_remaining",
+  "yardline_100",
+  "down",
+  "ydstogo",
+  "offense_timeouts",
+  "defense_timeouts",
+  "seconds_remaining_sqrt",
+  "seconds_remaining_log1p",
+  "half_seconds_remaining",
+  "elapsed_share",
+  "diff_time_ratio",
+  "spread_time",
+  "score_x_time",
+  "urgency",
+  "clock_leverage",
+  "abs_score_diff",
+  "score_differential_sq",
+  "timeout_diff",
+  "total_timeouts",
+  "home",
+  "posteam_spread",
+  "ep",
+  "ep_score_diff",
+  "ep_diff_time_ratio"
+ ],
+ "monotone": {
+  "score_differential": 1,
+  "quarter": 0,
+  "seconds_remaining": 0,
+  "yardline_100": -1,
+  "down": -1,
+  "ydstogo": -1,
+  "offense_timeouts": 1,
+  "defense_timeouts": -1,
+  "seconds_remaining_sqrt": 0,
+  "seconds_remaining_log1p": 0,
+  "half_seconds_remaining": 0,
+  "elapsed_share": 0,
+  "diff_time_ratio": 1,
+  "spread_time": -1,
+  "score_x_time": 0,
+  "urgency": 0,
+  "clock_leverage": 0,
+  "abs_score_diff": 0,
+  "score_differential_sq": 0,
+  "timeout_diff": 1,
+  "total_timeouts": 0,
+  "home": 0,
+  "posteam_spread": -1,
+  "ep": 1,
+  "ep_score_diff": 1,
+  "ep_diff_time_ratio": 1
+ },
+ "ep_model": {
+  "file": "ep.ubj",
+  "features": [
+   "yardline_100",
+   "down",
+   "ydstogo"
+  ],
+  "ydstogo_cap": 30
+ },
+ "train": "regulation plays 2016-2021 (no ties; Q4 last 8 min one-score plays weighted 3x), early stopping on 2022, test 2023-24",
+ "folds": [
+  {
+   "file": "model.ubj",
+   "calibrator": {
+    "type": "identity"
+   }
+  }
+ ]
+}
