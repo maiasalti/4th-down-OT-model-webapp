@@ -1,35 +1,59 @@
 """
 Flask server for the NFL OT 4th Down Decision Engine.
-Run with: python server.py
+
+    python server.py                         # dev
+    gunicorn -c gunicorn.conf.py server:app  # prod (see Dockerfile)
 """
 
+import hashlib
+import logging
 import os
 import sys
-import logging
+import time
 
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, jsonify, render_template, request
 
-# Ensure the app directory is on the path so imports work
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from decision_engine import analyze
+from decision_engine import analyze_many  # noqa: E402
+from models import preload_models  # noqa: E402
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+# Static files are fingerprinted (?v=<hash>), so browsers can keep them for a year.
+app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 31536000
 
-# Models are lazy-loaded on first /api/analyze request to keep startup fast.
-# This lets Render's health check pass immediately on deploy.
+_t = time.perf_counter()
+preload_models()  # fast now that the models are native XGBoost; under --preload this runs once
+logger.info("Models loaded in %.2fs", time.perf_counter() - _t)
+
+SWEEP_YARDLINES = list(range(1, 100, 3))
+
+
+def _fingerprint(name: str) -> str:
+    with open(os.path.join(app.static_folder, name), "rb") as f:
+        return hashlib.sha1(f.read()).hexdigest()[:10]
+
+
+ASSET_VERSIONS = {name: _fingerprint(name) for name in ("style.css", "app.js", "favicon.svg")}
+
+
+@app.context_processor
+def _asset_versions():
+    return {"v": ASSET_VERSIONS}
 
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    resp = app.make_response(render_template("index.html"))
+    resp.headers["Cache-Control"] = "public, max-age=300"
+    return resp
 
 
 def _parse_inputs(data: dict) -> dict:
-    """Validate the request body into keyword arguments for analyze()."""
+    """Validate the request body into keyword arguments for analyze_many()."""
     possession_number = max(1, min(3, int(data.get("possession_number", 1))))
     opponent_result = data.get("opponent_result") if possession_number == 2 else None
 
@@ -38,7 +62,6 @@ def _parse_inputs(data: dict) -> dict:
         return None if v in (None, "") else max(lo, min(hi, float(v)))
 
     return dict(
-        yardline_100=max(1, min(99, int(data.get("yardline_100", 50)))),
         yards_to_go=max(1, min(15, int(data.get("yards_to_go", 5)))),
         score_differential=max(-21, min(21, int(data.get("score_differential", 0)))),
         possession_number=possession_number,
@@ -72,23 +95,26 @@ def _parse_inputs(data: dict) -> dict:
 @app.route("/api/analyze", methods=["POST"])
 def api_analyze():
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True)
         if not data:
             return jsonify({"error": "No JSON data provided"}), 400
         kwargs = _parse_inputs(data)
-        result = analyze(**kwargs)
+        yardline = max(1, min(99, int(data.get("yardline_100", 50))))
+    except (TypeError, ValueError) as e:
+        return jsonify({"error": f"Bad input: {e}"}), 400
 
-        # Same situation at every 3rd yard line: the call for the whole field.
-        if data.get("sweep", True):
-            sweep = []
-            for yl in range(1, 100, 3):
-                r = analyze(**{**kwargs, "yardline_100": yl})
-                sweep.append({"yardline_100": yl, "recommendation": r["recommendation"],
-                              "margin": r["margin"]})
-            result["sweep"] = sweep
-
+    try:
+        # The situation itself plus the same call at every 3rd yard line,
+        # all scored in one vectorised pass.
+        sweep = SWEEP_YARDLINES if data.get("sweep", True) else []
+        results = analyze_many([yardline] + sweep, **kwargs)
+        result = results[0]
+        if sweep:
+            result["sweep"] = [
+                {"yardline_100": yl, "recommendation": r["recommendation"], "margin": r["margin"]}
+                for yl, r in zip(sweep, results[1:])
+            ]
         return jsonify(result)
-
     except Exception as e:
         logger.exception("Error in /api/analyze")
         return jsonify({"error": str(e)}), 500

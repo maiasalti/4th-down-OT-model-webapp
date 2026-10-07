@@ -1,424 +1,222 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NFL OT 4th Down Decision Engine</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;1,800&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
-    <meta name="description" content="Go for it, punt, or kick? Win probability for every 4th-down option in NFL overtime.">
-    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>4th Down in OT · playbyplay.football</title>
+<meta name="description" content="Go for it, kick, or punt? Win probability for every 4th-down option in NFL overtime, from UCLA Bruin Sports Analytics.">
+<meta name="theme-color" content="#0f1724">
+<link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}?v={{ v['favicon.svg'] }}">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Big+Shoulders+Display:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v={{ v['style.css'] }}">
+<script src="{{ url_for('static', filename='app.js') }}?v={{ v['app.js'] }}" defer></script>
 </head>
 <body>
 
-<!-- Header -->
-<header class="header">
-    <div class="hero-content">
-        <h1>4th down in overtime: <span>go, punt, or kick?</span></h1>
-        <p class="lede">Pick the field position and score. We estimate your chance of winning for each option and tell you the best call.</p>
-        <details class="credits"><summary>UCLA Bruin Sports Analytics · 8 builders</summary><p>Eshaan Dhavala, Abhi Kumar, Keith Bui, Josh Sujo, Maia Salti, Dillon Maheshwari, Andrew Yang, Gonzalo Merino Sanchez</p></details>
-    </div>
+<header class="masthead">
+  <div class="wrap masthead-row">
+    <a class="wordmark" href="/">playbyplay<span>.football</span></a>
+    <p class="credit">UCLA Bruin Sports Analytics</p>
+  </div>
+  <div class="wrap">
+    <h1>4th down in overtime</h1>
+    <p class="lede">Set the spot and the distance. The engine plays out going for it, kicking and punting under the 2025 overtime rules and makes the call.</p>
+  </div>
 </header>
 
-<!-- Main -->
-<div class="main-container">
+<main class="wrap desk">
 
-    <!-- Input Panel -->
-    <div class="input-panel">
-        <h2>The situation</h2>
-        <form id="analysis-form">
+  <!-- ===================== Situation ===================== -->
+  <section class="situation" aria-labelledby="sit-h">
+    <h2 id="sit-h" class="panel-h">Situation</h2>
 
-            <!-- Tab bar -->
-            <div class="settings-tabs">
-                <button type="button" class="settings-tab active" data-tab="standard">Standard</button>
-                <button type="button" class="settings-tab" data-tab="advanced">Advanced</button>
-            </div>
-
-            <!-- Standard tab -->
-            <div class="tab-content" id="tab-standard">
-
-                <!-- Yard Line -->
-                <div class="form-group">
-                    <label for="yardline">Yard Line</label>
-                    <div class="slider-container">
-                        <input type="range" id="yardline" min="1" max="99" value="50" step="1">
-                        <div class="slider-labels">
-                            <span>Opp EZ</span>
-                            <span>Opp 25</span>
-                            <span>50</span>
-                            <span>Own 25</span>
-                            <span>Own EZ</span>
-                        </div>
-                    </div>
-                    <div class="yard-display" id="yard-display">Midfield (50)</div>
-
-                    <!-- Field Visualization -->
-                    <div class="field-viz-inline">
-                        <div class="field-container">
-                            <div class="field-endzone-left">OPP</div>
-                            <div class="field-endzone-right">OWN</div>
-                            <div class="field-marker" id="field-marker" style="left:50%"></div>
-                        </div>
-                        <div class="field-labels">
-                            <span>EZ</span>
-                            <span>25</span>
-                            <span>50</span>
-                            <span>25</span>
-                            <span>EZ</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Yards to Go -->
-                <div class="form-group">
-                    <label for="yards-to-go">Yards to Go</label>
-                    <select id="yards-to-go">
-                        <option value="1">1 yard</option>
-                        <option value="2">2 yards</option>
-                        <option value="3">3 yards</option>
-                        <option value="4">4 yards</option>
-                        <option value="5" selected>5 yards</option>
-                        <option value="6">6 yards</option>
-                        <option value="7">7 yards</option>
-                        <option value="8">8 yards</option>
-                        <option value="9">9 yards</option>
-                        <option value="10">10 yards</option>
-                        <option value="11">11 yards</option>
-                        <option value="12">12 yards</option>
-                        <option value="13">13 yards</option>
-                        <option value="14">14 yards</option>
-                        <option value="15">15 yards</option>
-                    </select>
-                </div>
-
-                <!-- Score Differential -->
-                <div class="form-group">
-                    <label for="score-diff">Score Differential</label>
-                    <input type="number" id="score-diff" value="0" min="-21" max="21" step="1">
-                    <p class="hint">Your score minus opponent's score</p>
-                </div>
-
-                <!-- OT Possession Number -->
-                <div class="form-group">
-                    <label>OT Possession</label>
-                    <div class="radio-group">
-                        <div class="radio-btn">
-                            <input type="radio" name="possession" id="poss-1" value="1" checked>
-                            <label for="poss-1">1st Possession</label>
-                        </div>
-                        <div class="radio-btn">
-                            <input type="radio" name="possession" id="poss-2" value="2">
-                            <label for="poss-2">2nd Possession</label>
-                        </div>
-                        <div class="radio-btn">
-                            <input type="radio" name="possession" id="poss-3" value="3">
-                            <label for="poss-3">Sudden Death (3rd+)</label>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Opponent Result (conditional) -->
-                <div class="opponent-result" id="opponent-result-group">
-                    <div class="form-group" style="margin-bottom:0">
-                        <label>Opponent's Result</label>
-                        <div class="radio-group">
-                            <div class="radio-btn">
-                                <input type="radio" name="opp-result" id="opp-td" value="td">
-                                <label for="opp-td">Scored TD</label>
-                            </div>
-                            <div class="radio-btn">
-                                <input type="radio" name="opp-result" id="opp-fg" value="fg" checked>
-                                <label for="opp-fg">Scored FG</label>
-                            </div>
-                            <div class="radio-btn">
-                                <input type="radio" name="opp-result" id="opp-none" value="no_score">
-                                <label for="opp-none">Didn't Score</label>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Game Type -->
-                <div class="form-group">
-                    <label>Game Type</label>
-                    <div class="radio-group">
-                        <div class="radio-btn">
-                            <input type="radio" name="game-type" id="game-reg" value="regular" checked>
-                            <label for="game-reg">Regular Season</label>
-                        </div>
-                        <div class="radio-btn">
-                            <input type="radio" name="game-type" id="game-playoffs" value="playoffs">
-                            <label for="game-playoffs">Playoffs</label>
-                        </div>
-                    </div>
-                </div>
-
-            </div> <!-- end tab-standard -->
-
-            <!-- Advanced tab -->
-            <div class="tab-content" id="tab-advanced" style="display:none">
-                <p class="advanced-note">Leave these at defaults for league-average performance. Override to model a specific team's strengths.</p>
-
-                <div class="adv-grid">
-                    <div class="adv-col">
-                        <div class="advanced-section-label">Offensive Quality</div>
-                        <div class="form-group">
-                            <label for="adv-off-epa">Off. EPA/Play <span class="label-detail">(15-game rolling)</span></label>
-                            <input type="number" id="adv-off-epa" value="0.00" step="0.01" min="-0.3" max="0.3">
-                            <p class="hint">Avg: 0.00 · Top: +0.15 · Bottom: −0.10</p>
-                        </div>
-                        <div class="form-group">
-                            <label for="adv-off-success-rate">Off. Success Rate <span class="label-detail">(15-game rolling)</span></label>
-                            <input type="number" id="adv-off-success-rate" value="0.42" step="0.01" min="0.20" max="0.65">
-                            <p class="hint">Avg: 0.42 · Top: 0.50+ · Bottom: &lt;0.35</p>
-                        </div>
-                        <div class="form-group">
-                            <label for="adv-off-ppg">Off. Points/Game <span class="label-detail">(15-game rolling)</span></label>
-                            <input type="number" id="adv-off-ppg" value="23.0" step="0.5" min="10" max="40">
-                            <p class="hint">Avg: 23.0 · Top: 28+ · Bottom: &lt;17</p>
-                        </div>
-
-                        <div class="advanced-section-label">Opposing Defense Quality</div>
-                        <div class="form-group">
-                            <label for="adv-def-epa">Def. EPA/Play Allowed <span class="label-detail">(15-game rolling)</span></label>
-                            <input type="number" id="adv-def-epa" value="0.00" step="0.01" min="-0.3" max="0.3">
-                            <p class="hint">Avg: 0.00 · Weak: +0.10 · Elite: −0.10</p>
-                        </div>
-                        <div class="form-group">
-                            <label for="adv-def-success-rate">Def. Success Rate Allowed <span class="label-detail">(15-game rolling)</span></label>
-                            <input type="number" id="adv-def-success-rate" value="0.42" step="0.01" min="0.20" max="0.65">
-                            <p class="hint">Avg: 0.42 · Weak: 0.48+ · Elite: &lt;0.36</p>
-                        </div>
-                        <div class="form-group">
-                            <label for="adv-def-ppg">Def. Points/Game Allowed <span class="label-detail">(15-game rolling)</span></label>
-                            <input type="number" id="adv-def-ppg" value="23.0" step="0.5" min="10" max="40">
-                            <p class="hint">Avg: 23.0 · Weak: 27+ · Elite: &lt;18</p>
-                        </div>
-
-                        <div class="advanced-section-label">Special Teams</div>
-                        <div class="form-group">
-                            <label for="adv-punt-dist">Avg Punt Distance <span class="label-detail">(6-game rolling, yds)</span></label>
-                            <input type="number" id="adv-punt-dist" value="45.9" step="0.1" min="30" max="60">
-                            <p class="hint">Avg: 45.9 · Elite: 50+ · Below: &lt;42</p>
-                        </div>
-                        <div class="form-group">
-                            <label for="adv-inside20">Inside-20 Rate <span class="label-detail">(6-game rolling)</span></label>
-                            <input type="number" id="adv-inside20" value="0.44" step="0.01" min="0" max="1">
-                            <p class="hint">Avg: 0.44 · Elite: 0.55+ · Below: &lt;0.35</p>
-                        </div>
-                        <div class="form-group">
-                            <label for="adv-fg-rate">Kicker FG Make Rate <span class="label-detail">(6-game rolling)</span></label>
-                            <input type="number" id="adv-fg-rate" value="" step="0.01" min="0" max="1" placeholder="league avg by distance">
-                            <p class="hint">Blank = league avg · Elite: 0.90+ · Below: &lt;0.75</p>
-                        </div>
-                    </div>
-
-                    <div class="adv-col">
-                        <div class="advanced-section-label">Game Context</div>
-                        <div class="form-group">
-                            <label for="adv-home">Home / Away</label>
-                            <select id="adv-home">
-                                <option value="neutral" selected>Neutral (default)</option>
-                                <option value="home">Home</option>
-                                <option value="away">Away</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="adv-spread">Team Spread <span class="label-detail">(pregame line)</span></label>
-                            <input type="number" id="adv-spread" value="0" step="0.5" min="-17" max="17">
-                            <p class="hint">Negative = favored (e.g. −7). Zero = pick'em.</p>
-                        </div>
-                        <div class="form-group">
-                            <label for="adv-off-timeouts">Offense Timeouts Remaining</label>
-                            <select id="adv-off-timeouts">
-                                <option value="0">0</option>
-                                <option value="1">1</option>
-                                <option value="2" selected>2</option>
-                                <option value="3">3</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="adv-def-timeouts">Defense Timeouts Remaining</label>
-                            <select id="adv-def-timeouts">
-                                <option value="0">0</option>
-                                <option value="1">1</option>
-                                <option value="2" selected>2</option>
-                                <option value="3">3</option>
-                            </select>
-                        </div>
-
-                        <div class="advanced-section-label">Play Type</div>
-                        <div class="form-group">
-                            <label for="adv-shotgun">
-                                <input type="checkbox" id="adv-shotgun" checked> Shotgun Formation
-                            </label>
-                            <p class="hint">Most 4th-down attempts use shotgun</p>
-                        </div>
-                        <div class="form-group">
-                            <label for="adv-no-huddle">
-                                <input type="checkbox" id="adv-no-huddle"> No Huddle
-                            </label>
-                            <p class="hint">Hurry-up / no-huddle offense</p>
-                        </div>
-
-                        <div class="advanced-section-label">Weather &amp; Venue</div>
-                        <div class="form-group">
-                            <label for="adv-dome">
-                                <input type="checkbox" id="adv-dome"> Dome / Closed Roof
-                            </label>
-                            <p class="hint">Overrides wind to 0 and temp to 72°F</p>
-                        </div>
-                        <div class="form-group">
-                            <label for="adv-wind">Wind Speed <span class="label-detail">(MPH)</span></label>
-                            <input type="number" id="adv-wind" value="8" step="1" min="0" max="50">
-                            <p class="hint">Calm: 0-5 · Moderate: 10-15 · High: 20+</p>
-                        </div>
-                        <div class="form-group">
-                            <label for="adv-wind-gust">Wind Gust <span class="label-detail">(peak MPH, optional)</span></label>
-                            <input type="number" id="adv-wind-gust" value="" step="1" min="0" max="60" placeholder="defaults to wind speed">
-                            <p class="hint">Blank = defaults to wind speed</p>
-                        </div>
-                        <div class="form-group">
-                            <label for="adv-temp">Temperature <span class="label-detail">(°F)</span></label>
-                            <input type="number" id="adv-temp" value="65" step="1" min="-10" max="120">
-                            <p class="hint">Cold: &lt;32 · Mild: 50-70 · Hot: 85+</p>
-                        </div>
-                        <div class="form-group">
-                            <label for="adv-precip">
-                                <input type="checkbox" id="adv-precip"> Precipitation
-                            </label>
-                            <p class="hint">Rain, snow, sleet, or fog</p>
-                        </div>
-                        <div class="form-group">
-                            <label for="adv-surface">
-                                <input type="checkbox" id="adv-surface" checked> Grass Surface
-                            </label>
-                            <p class="hint">Uncheck for artificial turf</p>
-                        </div>
-                        <div class="form-group">
-                            <label for="adv-altitude">Altitude <span class="label-detail">(feet)</span></label>
-                            <input type="number" id="adv-altitude" value="0" step="100" min="0" max="6000">
-                            <p class="hint">Sea level: 0 · Denver: 5,280 · Mexico City: 7,350</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <button type="submit" class="analyze-btn" id="analyze-btn">Update</button>
-        </form>
+    <div class="field-block">
+      <svg class="field" id="field" viewBox="0 0 1200 260" role="img" aria-labelledby="field-title">
+        <title id="field-title">Field. Drag to move the ball.</title>
+        <rect class="turf" x="0" y="0" width="1200" height="260"/>
+        <rect class="ez" x="0" y="0" width="100" height="260"/>
+        <rect class="ez" x="1100" y="0" width="100" height="260"/>
+        <text class="ez-t" transform="translate(62 130) rotate(-90)">OWN</text>
+        <text class="ez-t" transform="translate(1138 130) rotate(90)">OPP</text>
+        <g id="yard-lines"></g>
+        <rect class="gain-zone" id="gain-zone" x="600" y="0" width="50" height="260"/>
+        <line class="los" id="los" x1="600" x2="600" y1="0" y2="260"/>
+        <line class="ltg" id="ltg" x1="650" x2="650" y1="0" y2="260"/>
+        <g id="ball" transform="translate(600 130)">
+          <ellipse rx="18" ry="10.5" class="ball"/>
+          <line x1="-7" x2="7" y1="0" y2="0" class="lace"/>
+        </g>
+        <rect id="field-hit" x="0" y="0" width="1200" height="260" fill="transparent"/>
+      </svg>
+      <label class="sr-only" for="yardline">Ball on (yards from the opponent's goal)</label>
+      <input type="range" id="yardline" min="1" max="99" value="50" step="1" class="field-range">
+      <p class="spot-readout"><span>Ball on <b id="spot-label">midfield</b></span><span class="dir">Driving toward OPP</span></p>
     </div>
 
-    <!-- Results Panel -->
-    <div class="results-panel">
-
-        <!-- Placeholder -->
-        <div class="results-placeholder" id="results-placeholder"><p>Loading the models…</p></div>
-
-        <!-- Loading -->
-        <div class="loading" id="loading">
-            <div class="spinner"></div>
-            <p>Updating…</p>
+    <div class="row-controls">
+      <div class="ctl">
+        <span class="ctl-label" id="dist-label">Distance</span>
+        <div class="stepper" role="group" aria-labelledby="dist-label">
+          <button type="button" class="step" id="ytg-minus" aria-label="One yard shorter">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10"/></svg>
+          </button>
+          <output id="ytg-out" aria-live="polite"><span class="dn">4th &amp;</span> <b id="ytg-val">5</b></output>
+          <button type="button" class="step" id="ytg-plus" aria-label="One yard longer">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10M8 3v10"/></svg>
+          </button>
         </div>
+      </div>
 
-        <!-- Results Content -->
-        <div class="results-content" id="results-content">
-
-            <!-- Decision Cards -->
-            <div class="verdict" aria-live="polite">
-                <p class="verdict-label">Best call</p>
-                <h2 class="verdict-call" id="verdict-call">–</h2>
-                <p class="verdict-sub" id="verdict-sub"></p>
-            </div>
-
-            <div class="cards-row">
-                <!-- Go For It -->
-                <div class="decision-card" id="card-go">
-                    <div class="recommended-badge">RECOMMENDED</div>
-                    <div class="card-title">Go For It</div>
-                    <div class="win-prob" id="prob-go">--</div>
-                    <div class="win-label">win probability</div><div class="win-bar"><i></i></div>
-                </div>
-
-                <!-- Punt -->
-                <div class="decision-card" id="card-punt">
-                    <div class="recommended-badge">RECOMMENDED</div>
-                    <div class="card-title">Punt</div>
-                    <div class="win-prob" id="prob-punt">--</div>
-                    <div class="win-label">win probability</div><div class="win-bar"><i></i></div>
-                </div>
-
-                <!-- Field Goal -->
-                <div class="decision-card" id="card-fg">
-                    <div class="recommended-badge">RECOMMENDED</div>
-                    <div class="card-title">Field Goal</div>
-                    <div class="win-prob" id="prob-fg">--</div>
-                    <div class="win-label">win probability</div><div class="win-bar"><i></i></div>
-                </div>
-            </div>
-
-            <!-- Meta -->
-            <div class="result-meta">
-                <div class="strength-row">
-                    <span class="strength-label">Edge</span>
-                    <span class="strength-value" id="strength-value">--</span>
-                </div>
-                <div class="details-grid">
-                    <div class="detail-item">
-                        <div class="detail-value" id="detail-conv">--</div>
-                        <div class="detail-label">4th Down Conv. Prob.</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-value" id="detail-fg">--</div>
-                        <div class="detail-label">FG Make Prob.</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-value" id="detail-punt">--</div>
-                        <div class="detail-label">Expected Punt Landing</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Breakdown: real numbers from the submodels -->
-            <div class="breakdown" id="decision-context"></div>
-
-            <!-- Same situation across the whole field -->
-            <div class="sweep">
-                <div class="sweep-head"><span>Same situation, anywhere on the field</span><span class="sweep-legend"><i class="lg go"></i>Go <i class="lg fg"></i>FG <i class="lg punt"></i>Punt</span></div>
-                <div class="sweep-strip" id="sweep-strip"></div>
-                <div class="sweep-axis"><span>Opp goal</span><span>Opp 25</span><span>50</span><span>Own 25</span><span>Own goal</span></div>
-            </div>
-            <div id="transparency-toggle" hidden></div><div id="transparency-panel" hidden><div id="transparency-scenario"></div><div id="transparency-steps"></div></div>
-
+      <div class="ctl">
+        <span class="ctl-label" id="poss-label">Overtime possession</span>
+        <div class="seg" role="radiogroup" aria-labelledby="poss-label">
+          <input type="radio" name="possession" id="poss-1" value="1" checked><label for="poss-1">1st</label>
+          <input type="radio" name="possession" id="poss-2" value="2"><label for="poss-2">2nd</label>
+          <input type="radio" name="possession" id="poss-3" value="3"><label for="poss-3">Sudden death</label>
         </div>
+      </div>
+
+      <div class="ctl ctl-wide" id="opponent-result-group" hidden>
+        <span class="ctl-label" id="opp-label">On their possession, they scored</span>
+        <div class="seg" role="radiogroup" aria-labelledby="opp-label">
+          <input type="radio" name="opp-result" id="opp-td" value="td"><label for="opp-td">Touchdown</label>
+          <input type="radio" name="opp-result" id="opp-fg" value="fg" checked><label for="opp-fg">Field goal</label>
+          <input type="radio" name="opp-result" id="opp-none" value="no_score"><label for="opp-none">Nothing</label>
+        </div>
+      </div>
     </div>
-</div>
 
-<!-- About the Model -->
-<section class="about-section">
-    <div class="about-container">
-        <h2 class="about-title">How it works</h2>
-        <p class="about-intro">For each choice, the engine builds the game state that follows (converted, failed, kick made, kick missed, punted) and scores it with a win-probability model. The best choice is the one with the highest expected win probability.</p>
-        <div class="models">
-            <div class="m"><b>4th-down conversion</b><span>XGBoost, calibrated, monotone in yards to go</span></div>
-            <div class="m"><b>Field goal</b><span>XGBoost, calibrated; held-out AUC 0.78</span></div>
-            <div class="m"><b>Punt landing</b><span>XGBoost regressor; MAE 5.9 yd</span></div>
-            <div class="m"><b>Win probability</b><span>XGBoost on 350K+ plays, 2016–2024</span></div>
-        </div>
-        <details class="about-more">
-            <summary>Rules, method, and limits</summary>
-            <ul>
-                <li>Post-2022 overtime: both teams get the ball; after that, the next score wins.</li>
-                <li>Missed field goals give the opponent the ball at the spot of the kick, or their 20 if that is closer to their goal.</li>
-                <li>The field-goal model is constrained so a longer kick or stronger wind never helps, and is tapered past 57 yards where data is thin.</li>
-                <li>The win-probability model is trained on regulation plays; overtime states are mapped onto regulation equivalents. It changes little once a team is pinned inside its own 30.</li>
-                <li>Punt quality uses team-level, not punter-level, stats.</li>
-            </ul>
-        </details>
+    <details class="adv" id="adv">
+      <summary>
+        <span>Team, kicking and weather</span>
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
+      </summary>
+      <p class="adv-note">Defaults are league average. Change them to model a specific matchup.</p>
+      <div class="adv-groups">
+        <fieldset>
+          <legend>Your offense</legend>
+          <label class="f"><span>EPA per play</span><input type="number" id="adv-off-epa" value="0.00" step="0.01" min="-0.3" max="0.3"><small>avg 0.00 · top +0.15</small></label>
+          <label class="f"><span>Success rate</span><input type="number" id="adv-off-success-rate" value="0.42" step="0.01" min="0.20" max="0.65"><small>avg 0.42 · top 0.50</small></label>
+          <label class="f"><span>Points per game</span><input type="number" id="adv-off-ppg" value="23.0" step="0.5" min="10" max="40"><small>avg 23 · top 28</small></label>
+          <label class="chk"><input type="checkbox" id="adv-shotgun" checked> Shotgun</label>
+          <label class="chk"><input type="checkbox" id="adv-no-huddle"> No huddle</label>
+        </fieldset>
+        <fieldset>
+          <legend>Their defense</legend>
+          <label class="f"><span>EPA per play allowed</span><input type="number" id="adv-def-epa" value="0.00" step="0.01" min="-0.3" max="0.3"><small>avg 0.00 · elite −0.10</small></label>
+          <label class="f"><span>Success rate allowed</span><input type="number" id="adv-def-success-rate" value="0.42" step="0.01" min="0.20" max="0.65"><small>avg 0.42 · elite 0.36</small></label>
+          <label class="f"><span>Points allowed per game</span><input type="number" id="adv-def-ppg" value="23.0" step="0.5" min="10" max="40"><small>avg 23 · elite 18</small></label>
+        </fieldset>
+        <fieldset>
+          <legend>Special teams</legend>
+          <label class="f"><span>Average punt, yards</span><input type="number" id="adv-punt-dist" value="45.9" step="0.1" min="30" max="60"><small>last 6 games · avg 45.9</small></label>
+          <label class="f"><span>Punts inside the 20</span><input type="number" id="adv-inside20" value="0.44" step="0.01" min="0" max="1"><small>share · avg 0.44</small></label>
+          <label class="f"><span>Kicker make rate</span><input type="number" id="adv-fg-rate" value="" step="0.01" min="0" max="1" placeholder="league avg"><small>blank = league avg by distance</small></label>
+        </fieldset>
+        <fieldset>
+          <legend>Game</legend>
+          <label class="f"><span>Your team is</span>
+            <select id="adv-home"><option value="neutral" selected>Neutral site</option><option value="home">Home</option><option value="away">Away</option></select>
+          </label>
+          <label class="f"><span>Pregame spread</span><input type="number" id="adv-spread" value="0" step="0.5" min="-17" max="17"><small>negative = you were favored</small></label>
+          <label class="f"><span>Your timeouts</span>
+            <select id="adv-off-timeouts"><option>0</option><option>1</option><option selected>2</option><option>3</option></select>
+          </label>
+          <label class="f"><span>Their timeouts</span>
+            <select id="adv-def-timeouts"><option>0</option><option>1</option><option selected>2</option><option>3</option></select>
+          </label>
+        </fieldset>
+        <fieldset>
+          <legend>Weather and venue</legend>
+          <label class="f"><span>Wind, mph</span><input type="number" id="adv-wind" value="8" step="1" min="0" max="50"></label>
+          <label class="f"><span>Gusts, mph</span><input type="number" id="adv-wind-gust" value="" step="1" min="0" max="60" placeholder="same as wind"></label>
+          <label class="f"><span>Temperature, °F</span><input type="number" id="adv-temp" value="65" step="1" min="-10" max="120"></label>
+          <label class="f"><span>Altitude, ft</span><input type="number" id="adv-altitude" value="0" step="100" min="0" max="8000"></label>
+          <label class="chk"><input type="checkbox" id="adv-dome"> Dome or closed roof</label>
+          <label class="chk"><input type="checkbox" id="adv-precip"> Rain or snow</label>
+          <label class="chk"><input type="checkbox" id="adv-surface" checked> Grass</label>
+        </fieldset>
+      </div>
+    </details>
+  </section>
+
+  <!-- ===================== The call ===================== -->
+  <section class="board" id="board" aria-labelledby="call-h" aria-busy="true">
+
+    <div class="bug" aria-label="Game situation">
+      <span class="bug-ot">OT</span>
+      <span id="bug-poss">1st poss</span>
+      <span id="bug-score">Tied</span>
+      <span class="bug-dd" id="bug-dd">4th &amp; 5</span>
+      <span id="bug-spot">Midfield</span>
     </div>
+
+    <div class="call" aria-live="polite">
+      <h2 class="call-word" id="call-h"><span id="call-word">Thinking</span></h2>
+      <p class="call-sub" id="call-sub">Loading the models. After a quiet spell the free server takes a few seconds to wake up.</p>
+    </div>
+
+    <ol class="options" id="options">
+      <li class="opt" data-opt="go">
+        <span class="opt-name">Go for it</span>
+        <span class="opt-wp"><b data-wp>–</b><i>%</i></span>
+        <span class="opt-bar"><i data-bar></i></span>
+        <span class="opt-note" data-note>&nbsp;</span>
+      </li>
+      <li class="opt" data-opt="fg">
+        <span class="opt-name">Field goal</span>
+        <span class="opt-wp"><b data-wp>–</b><i>%</i></span>
+        <span class="opt-bar"><i data-bar></i></span>
+        <span class="opt-note" data-note>&nbsp;</span>
+      </li>
+      <li class="opt" data-opt="punt">
+        <span class="opt-name">Punt</span>
+        <span class="opt-wp"><b data-wp>–</b><i>%</i></span>
+        <span class="opt-bar"><i data-bar></i></span>
+        <span class="opt-note" data-note>&nbsp;</span>
+      </li>
+    </ol>
+    <p class="wp-key">Chance to win the game with each choice. Bars run 0 to 100%, tick at 50.</p>
+
+    <div class="why">
+      <h3 class="sub-h">Why</h3>
+      <table class="tree">
+        <thead><tr><th scope="col">Choice</th><th scope="col">Outcome</th><th scope="col" class="n">Odds</th><th scope="col" class="n">Win</th></tr></thead>
+        <tbody id="tree-body"></tbody>
+      </table>
+    </div>
+
+    <div class="sweep">
+      <div class="sweep-head">
+        <h3 class="sub-h">Same distance, every spot</h3>
+        <p class="legend"><span><i class="k go"></i>Go</span><span><i class="k fg"></i>Kick</span><span><i class="k punt"></i>Punt</span></p>
+      </div>
+      <div class="sweep-strip" id="sweep-strip" role="img" aria-label="Recommended call at every yard line"></div>
+      <div class="sweep-axis" aria-hidden="true"><span>Own goal</span><span>25</span><span>50</span><span>25</span><span>Opp goal</span></div>
+    </div>
+
+    <p class="error" id="error" role="alert" hidden></p>
+  </section>
+</main>
+
+<section class="method wrap" aria-labelledby="method-h">
+  <h2 id="method-h">How the call is made</h2>
+  <div class="method-cols">
+    <div class="prose">
+      <p>Each choice leads to a few outcomes: convert or get stopped, make or miss, a punt that lands somewhere. The engine estimates how likely each outcome is, then how likely you are to win from where it leaves the game. The call is the choice with the best expected chance to win.</p>
+      <p>Overtime is valued drive by drive under the 2025 rules: both teams get the ball, then the next score wins. That is why field position matters so much. Give the ball back at your own 10 and the other team only needs a field goal.</p>
+    </div>
+    <dl class="models">
+      <div><dt>Conversion</dt><dd>XGBoost on NFL 4th downs, blended with league rates by distance</dd></div>
+      <div><dt>Field goal</dt><dd>XGBoost with weather and venue, tapered past 57 yards</dd></div>
+      <div><dt>Punt</dt><dd>Where the next drive really starts, returns included</dd></div>
+      <div><dt>Drives</dt><dd>How 22,000 NFL drives ended by starting spot, checked against every overtime drive since 2016</dd></div>
+    </dl>
+  </div>
+  <p class="limits">Not modeled: the 10-minute clock, regular-season ties, and individual punters. Built by Eshaan Dhavala, Abhi Kumar, Keith Bui, Josh Sujo, Maia Salti, Dillon Maheshwari, Andrew Yang and Gonzalo Merino Sanchez.</p>
 </section>
 
-<script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>

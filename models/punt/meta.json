@@ -1,0 +1,13 @@
+{
+ "features": [
+  "yardline_100",
+  "punt_distance_roll6",
+  "inside_twenty_rate_roll6"
+ ],
+ "target": "opponent yardline_100 at the start of their drive (net of returns)",
+ "folds": [
+  {
+   "file": "model.ubj"
+  }
+ ]
+}

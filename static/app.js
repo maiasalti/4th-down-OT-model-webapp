@@ -1,420 +1,267 @@
-// ==========================================================================
-//  NFL OT 4th Down Decision Engine — Frontend
-// ==========================================================================
+"use strict";
 
-document.addEventListener("DOMContentLoaded", () => {
-    const form = document.getElementById("analysis-form");
-    const yardSlider = document.getElementById("yardline");
-    const yardDisplay = document.getElementById("yard-display");
-    const fieldMarker = document.getElementById("field-marker");
-    const possRadios = document.querySelectorAll('input[name="possession"]');
-    const oppResult = document.getElementById("opponent-result-group");
-    const settingsTabs = document.querySelectorAll(".settings-tab");
-    const tabStandard = document.getElementById("tab-standard");
-    const tabAdvanced = document.getElementById("tab-advanced");
-    const analyzeBtn = document.getElementById("analyze-btn");
-    const loadingEl = document.getElementById("loading");
-    const resultsContent = document.getElementById("results-content");
-    const placeholder = document.getElementById("results-placeholder");
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const NAMES = { go: "Go for it", fg: "Field goal", punt: "Punt" };
+  const SHORT = { go: "going for it", fg: "kicking", punt: "punting" };
 
-    // --- Yard line slider ---
-    function updateYardDisplay() {
-        const val = parseInt(yardSlider.value);
-        let label;
-        if (val === 50) {
-            label = "Midfield (50)";
-        } else if (val > 50) {
-            label = `Your own ${100 - val}`;
-        } else {
-            label = `Opponent's ${val}`;
-        }
-        yardDisplay.textContent = label;
-        const pct = val;
-        fieldMarker.style.left = `${pct}%`;
+  const state = { yl: 50, ytg: 5 };
+  let reqId = 0;
+  let timer = null;
+  let lastCall = null;
+
+  // ---------- field drawing ----------
+  const SVGNS = "http://www.w3.org/2000/svg";
+  const xOf = (yl) => 100 + (100 - yl) * 10; // own goal on the left, driving right
+
+  function drawField() {
+    const g = $("yard-lines");
+    const add = (tag, attrs, text) => {
+      const el = document.createElementNS(SVGNS, tag);
+      for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+      if (text) el.textContent = text;
+      g.appendChild(el);
+    };
+    for (let y = 0; y <= 100; y += 5) {
+      const x = 100 + y * 10;
+      add("line", { x1: x, x2: x, y1: 0, y2: 260, class: y === 0 || y === 100 ? "yl goal" : "yl" });
     }
-
-    yardSlider.addEventListener("input", updateYardDisplay);
-    updateYardDisplay();
-
-    // --- Possession toggle ---
-    function checkPossession() {
-        const selected = document.querySelector('input[name="possession"]:checked');
-        if (selected && selected.value === "2") {
-            oppResult.classList.add("visible");
-        } else {
-            oppResult.classList.remove("visible");
-        }
+    for (let y = 1; y < 100; y++) {
+      if (y % 5 === 0) continue;
+      const x = 100 + y * 10;
+      add("line", { x1: x, x2: x, y1: 4, y2: 16, class: "hash" });
+      add("line", { x1: x, x2: x, y1: 244, y2: 256, class: "hash" });
+      add("line", { x1: x, x2: x, y1: 96, y2: 106, class: "hash" });
+      add("line", { x1: x, x2: x, y1: 154, y2: 164, class: "hash" });
     }
+    for (let y = 10; y <= 90; y += 10) {
+      const n = y <= 50 ? y : 100 - y;
+      const x = 100 + y * 10;
+      add("text", { x, y: 62, class: "ynum" }, String(n));
+      add("text", { x, y: 222, class: "ynum", transform: `rotate(180 ${x} 212)` }, String(n));
+    }
+  }
 
-    possRadios.forEach((r) => r.addEventListener("change", checkPossession));
-    checkPossession();
+  const spotText = (yl) => (yl === 50 ? "midfield" : yl > 50 ? `own ${100 - yl}` : `opp ${yl}`);
+  const spotCaps = (yl) => { const s = spotText(yl); return s[0].toUpperCase() + s.slice(1); };
 
-    // --- Settings tabs ---
-    settingsTabs.forEach(tab => {
-        tab.addEventListener("click", () => {
-            settingsTabs.forEach(t => t.classList.remove("active"));
-            tab.classList.add("active");
-            const target = tab.dataset.tab;
-            tabStandard.style.display = target === "standard" ? "block" : "none";
-            tabAdvanced.style.display = target === "advanced" ? "block" : "none";
-        });
-    });
+  function paintSituation() {
+    const { yl } = state;
+    const ytg = Math.min(state.ytg, yl);
+    const x = xOf(yl);
+    const xg = xOf(Math.max(0, yl - ytg));
+    $("ball").setAttribute("transform", `translate(${x} 130)`);
+    for (const id of ["los"]) { $(id).setAttribute("x1", x); $(id).setAttribute("x2", x); }
+    $("ltg").setAttribute("x1", xg); $("ltg").setAttribute("x2", xg);
+    $("gain-zone").setAttribute("x", x); $("gain-zone").setAttribute("width", Math.max(0, xg - x));
+    $("yardline").value = yl;
+    $("spot-label").textContent = spotText(yl);
+    const goal = ytg >= yl;
+    $("ytg-val").textContent = goal ? "goal" : ytg;
+    $("ytg-minus").disabled = state.ytg <= 1;
+    $("ytg-plus").disabled = state.ytg >= 15 || state.ytg >= yl;
 
-    // --- Transparency toggle ---
-    const transToggle = document.getElementById("transparency-toggle");
-    const transPanel = document.getElementById("transparency-panel");
-    transToggle.addEventListener("click", () => {
-        transToggle.classList.toggle("open");
-        transPanel.classList.toggle("visible");
-    });
+    const poss = document.querySelector("input[name=possession]:checked").value;
+    const opp = document.querySelector("input[name=opp-result]:checked").value;
+    $("opponent-result-group").hidden = poss !== "2";
+    $("bug-poss").textContent = poss === "1" ? "1st poss" : poss === "2" ? "2nd poss" : "Sudden death";
+    $("bug-score").textContent = poss === "2" && opp === "td" ? "Down 7" : poss === "2" && opp === "fg" ? "Down 3" : "Tied";
+    $("bug-dd").textContent = `4th & ${goal ? "goal" : ytg}`;
+    $("bug-spot").textContent = spotCaps(yl);
+  }
 
-    // --- Analyze: live as inputs change ---
-    let requestId = 0;
-    let debounceTimer;
-    const scheduleAnalysis = () => { clearTimeout(debounceTimer); debounceTimer = setTimeout(runAnalysis, 280); };
-    form.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        await runAnalysis();
-    });
-    form.addEventListener("input", scheduleAnalysis);
-    form.addEventListener("change", scheduleAnalysis);
+  // ---------- inputs ----------
+  const num = (id, dflt) => { const v = parseFloat($(id).value); return Number.isFinite(v) ? v : dflt; };
+  const optNum = (id) => { const v = $(id).value; return v === "" ? null : parseFloat(v); };
 
-    async function runAnalysis() {
-        const yardline_100 = parseInt(yardSlider.value);
-        const yards_to_go = parseInt(document.getElementById("yards-to-go").value);
-        const score_differential = parseInt(
-            document.getElementById("score-diff").value
-        );
-        const possession_number = parseInt(
-            document.querySelector('input[name="possession"]:checked').value
-        );
-        const gameTypeRadio = document.querySelector('input[name="game-type"]:checked');
-        const is_playoffs = gameTypeRadio ? gameTypeRadio.value === "playoffs" : false;
+  function payload() {
+    const poss = parseInt(document.querySelector("input[name=possession]:checked").value, 10);
+    const home = $("adv-home").value;
+    return {
+      yardline_100: state.yl,
+      yards_to_go: Math.min(state.ytg, state.yl),
+      possession_number: poss,
+      opponent_result: poss === 2 ? document.querySelector("input[name=opp-result]:checked").value : null,
+      off_epa: num("adv-off-epa", 0), def_epa: num("adv-def-epa", 0),
+      off_success_rate: num("adv-off-success-rate", 0.42), off_ppg: num("adv-off-ppg", 23),
+      def_success_rate: num("adv-def-success-rate", 0.42), def_ppg: num("adv-def-ppg", 23),
+      shotgun: $("adv-shotgun").checked ? 1 : 0, no_huddle: $("adv-no-huddle").checked ? 1 : 0,
+      punt_distance_roll6: optNum("adv-punt-dist"), inside_twenty_rate_roll6: optNum("adv-inside20"),
+      fg_make_rate_roll6: optNum("adv-fg-rate"),
+      is_home: home === "neutral" ? null : home === "home",
+      offense_timeouts: parseInt($("adv-off-timeouts").value, 10),
+      defense_timeouts: parseInt($("adv-def-timeouts").value, 10),
+      posteam_spread: num("adv-spread", 0),
+      is_dome: $("adv-dome").checked, wind: num("adv-wind", 8), wind_gust: optNum("adv-wind-gust"),
+      temp: num("adv-temp", 65), is_precipitation: $("adv-precip").checked,
+      surface_is_grass: $("adv-surface").checked, altitude_ft: num("adv-altitude", 0),
+    };
+  }
 
-        let opponent_result = null;
-        if (possession_number === 2) {
-            const oppRadio = document.querySelector(
-                'input[name="opp-result"]:checked'
-            );
-            if (oppRadio) {
-                opponent_result = oppRadio.value;
-            }
-        }
+  function schedule(delay = 140) {
+    paintSituation();
+    clearTimeout(timer);
+    timer = setTimeout(analyze, delay);
+  }
 
-        // Advanced settings: EPA values
-        const off_epa = parseFloat(document.getElementById("adv-off-epa").value) || 0.0;
-        const def_epa = parseFloat(document.getElementById("adv-def-epa").value) || 0.0;
-
-        // Offensive & defensive rolling stats
-        const off_success_rate = parseFloat(document.getElementById("adv-off-success-rate").value) || 0.42;
-        const off_ppg = parseFloat(document.getElementById("adv-off-ppg").value) || 23.0;
-        const def_success_rate = parseFloat(document.getElementById("adv-def-success-rate").value) || 0.42;
-        const def_ppg = parseFloat(document.getElementById("adv-def-ppg").value) || 23.0;
-
-        // Play type
-        const shotgun = document.getElementById("adv-shotgun")?.checked ? 1 : 0;
-        const no_huddle = document.getElementById("adv-no-huddle")?.checked ? 1 : 0;
-
-        // Punt quality settings
-        const puntDistEl = document.getElementById("adv-punt-dist");
-        const inside20El = document.getElementById("adv-inside20");
-        const punt_distance_roll6 = puntDistEl ? parseFloat(puntDistEl.value) || null : null;
-        const inside_twenty_rate_roll6 = inside20El ? parseFloat(inside20El.value) || null : null;
-
-        // Kicker quality
-        const fgRateEl = document.getElementById("adv-fg-rate");
-        const fg_make_rate_roll6 = fgRateEl && fgRateEl.value !== "" ? parseFloat(fgRateEl.value) : null;
-
-        // Game context
-        const homeVal = document.getElementById("adv-home")?.value || "neutral";
-        const is_home = homeVal === "neutral" ? null : homeVal === "home";
-        const offense_timeouts = parseInt(document.getElementById("adv-off-timeouts")?.value) ?? 2;
-        const defense_timeouts = parseInt(document.getElementById("adv-def-timeouts")?.value) ?? 2;
-        const posteam_spread = parseFloat(document.getElementById("adv-spread")?.value) || 0.0;
-
-        // Weather & venue settings (used by FG model)
-        const is_dome = document.getElementById("adv-dome")?.checked || false;
-        const wind = parseFloat(document.getElementById("adv-wind")?.value) || 0;
-        const windGustEl = document.getElementById("adv-wind-gust");
-        const wind_gust = windGustEl && windGustEl.value !== "" ? parseFloat(windGustEl.value) : null;
-        const temp = parseFloat(document.getElementById("adv-temp")?.value) || 65;
-        const is_precipitation = document.getElementById("adv-precip")?.checked || false;
-        const surface_is_grass = document.getElementById("adv-surface")?.checked ?? true;
-        const altitude_ft = parseFloat(document.getElementById("adv-altitude")?.value) || 0;
-
-        const payload = {
-            yardline_100,
-            yards_to_go,
-            score_differential,
-            possession_number,
-            opponent_result,
-            is_playoffs,
-            off_epa,
-            def_epa,
-            off_success_rate,
-            off_ppg,
-            def_success_rate,
-            def_ppg,
-            shotgun,
-            no_huddle,
-            punt_distance_roll6,
-            inside_twenty_rate_roll6,
-            fg_make_rate_roll6,
-            is_home,
-            offense_timeouts,
-            defense_timeouts,
-            posteam_spread,
-            is_dome,
-            wind,
-            wind_gust,
-            temp,
-            is_precipitation,
-            surface_is_grass,
-            altitude_ft,
-        };
-
-        // Keep the last result on screen while updating
-        resultsContent.classList.add("updating");
-        const ticket = ++requestId;
-
+  async function analyze() {
+    const ticket = ++reqId;
+    const board = $("board");
+    board.setAttribute("aria-busy", "true");
+    const slow = setTimeout(() => {
+      if (ticket === reqId && !lastCall) $("call-sub").textContent = "Waking up the free server. This only happens after it has been idle.";
+    }, 2500);
+    try {
+      let resp;
+      for (let attempt = 0; ; attempt++) {
         try {
-            const resp = await fetch("/api/analyze", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
-            });
-
-            if (!resp.ok) {
-                const err = await resp.json();
-                throw new Error(err.error || "Server error");
-            }
-
-            const data = await resp.json();
-            if (ticket !== requestId) return; // a newer request is on its way
-            placeholder.style.display = "none";
-            renderResults(data);
-        } catch (err) {
-            placeholder.style.display = "flex";
-            placeholder.innerHTML = "<p>Couldn’t reach the models (" + err.message + "). The free server may be waking up; try again in a few seconds.</p>";
-        } finally {
-            if (ticket === requestId) resultsContent.classList.remove("updating");
+          resp = await fetch("/api/analyze", {
+            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload()),
+          });
+          if (resp.status < 500 || attempt >= 2) break;
+        } catch (e) {
+          if (attempt >= 2) throw e;
         }
+        await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+      }
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || `server said ${resp.status}`);
+      if (ticket !== reqId) return;
+      $("error").hidden = true;
+      render(data);
+    } catch (err) {
+      if (ticket !== reqId) return;
+      $("error").textContent = `Couldn't get a call (${err.message}). Change any input to try again.`;
+      $("error").hidden = false;
+    } finally {
+      clearTimeout(slow);
+      if (ticket === reqId) board.setAttribute("aria-busy", "false");
+    }
+  }
+
+  // ---------- rendering ----------
+  const pct = (v) => (v == null ? "–" : (Math.round(v * 10) / 10).toFixed(1));
+  const whole = (v) => `${Math.round(v)}%`;
+
+  function render(d) {
+    const wp = d.win_probabilities;
+    const det = d.details;
+    const sm = d.submodel_details;
+    const rec = d.recommendation;
+    const yl = d.inputs.yardline_100;
+
+    // the call
+    const word = $("call-word");
+    word.textContent = NAMES[rec];
+    if (rec !== lastCall) {
+      const h = $("call-h");
+      h.classList.remove("flip"); void h.offsetWidth; h.classList.add("flip");
+      lastCall = rec;
+    }
+    const ranked = Object.entries(wp).filter(([, v]) => v != null).sort((a, b) => b[1] - a[1]);
+    const runner = ranked[1];
+    const strength = d.margin >= 3 ? "Clear call" : d.margin >= 1 ? "Lean" : "Coin flip";
+    $("call-sub").innerHTML =
+      `<b>${strength}.</b> ${whole(wp[rec])} to win, ${d.margin.toFixed(1)} points better than ${SHORT[runner[0]]}.`;
+
+    // option rows
+    const notes = {
+      go: det.conversion_is_touchdown ? `${whole(det.conversion_probability)} to score` : `${whole(det.conversion_probability)} to convert`,
+      fg: wp.fg == null ? `${det.fg_distance} yd: out of range` : `${det.fg_distance} yd · ${whole(det.fg_make_probability)} to make`,
+      punt: `${Math.round(det.expected_punt_net)} yd net · they start at ${Math.round(det.punt_opponent_yardline_100) > 50 ? "their own " + (100 - Math.round(det.punt_opponent_yardline_100)) : "your " + Math.round(det.punt_opponent_yardline_100)}`,
+    };
+    for (const li of document.querySelectorAll(".opt")) {
+      const k = li.dataset.opt;
+      const v = wp[k];
+      li.classList.toggle("best", k === rec);
+      li.classList.toggle("off", v == null);
+      li.querySelector("[data-wp]").textContent = v == null ? "–" : pct(v);
+      li.querySelector("[data-bar]").style.transform = `scaleX(${v == null ? 0 : v / 100})`;
+      li.querySelector("[data-note]").textContent = notes[k];
     }
 
-    function renderResults(data) {
-        const wp = data.win_probabilities;
-        const rec = data.recommendation;
-        const details = data.details;
-        const inputs = data.inputs;
-
-        // Cards
-        const cards = {
-            go: document.getElementById("card-go"),
-            punt: document.getElementById("card-punt"),
-            fg: document.getElementById("card-fg"),
-        };
-
-        const probs = {
-            go: document.getElementById("prob-go"),
-            punt: document.getElementById("prob-punt"),
-            fg: document.getElementById("prob-fg"),
-        };
-
-        Object.keys(cards).forEach((key) => {
-            cards[key].classList.remove("recommended", "unavailable");
-            if (key === rec) {
-                cards[key].classList.add("recommended");
-            }
-            if (wp[key] === null) {
-                probs[key].textContent = "N/A";
-                cards[key].classList.add("unavailable");
-            } else {
-                probs[key].textContent = wp[key].toFixed(1) + "%";
-            }
-            const bar = cards[key].querySelector(".win-bar i");
-            if (bar) bar.style.width = (wp[key] === null ? 0 : Math.max(0, Math.min(100, wp[key]))) + "%";
-        });
-
-        // Verdict in plain words
-        const callText = { go: "Go for it", punt: "Punt", fg: "Kick the field goal" }[rec];
-        const others = Object.entries(wp).filter(([k, v]) => k !== rec && v !== null).sort((x, y) => y[1] - x[1]);
-        const otherName = { go: "going for it", punt: "punting", fg: "kicking" }[others[0][0]];
-        document.getElementById("verdict-call").textContent = callText;
-        document.getElementById("verdict-sub").textContent =
-            `${wp[rec].toFixed(0)}% chance to win · ${data.margin.toFixed(1)} points better than ${otherName}` +
-            (data.recommendation_strength === "Marginal" ? " (close call)" : "");
-        document.querySelector(".verdict").dataset.call = rec;
-
-        // Strength
-        const strengthEl = document.getElementById("strength-value");
-        strengthEl.textContent =
-            `${data.recommendation_strength} · +${data.margin.toFixed(1)} pts over the next best`;
-        strengthEl.className = "strength-value";
-        if (data.recommendation_strength === "Strong") {
-            strengthEl.classList.add("strong");
-        } else if (data.recommendation_strength === "Moderate") {
-            strengthEl.classList.add("moderate");
-        } else {
-            strengthEl.classList.add("marginal");
-        }
-
-        // Details
-        document.getElementById("detail-conv").textContent =
-            details.conversion_probability + "%";
-        document.getElementById("detail-fg").textContent =
-            details.fg_make_probability !== null
-                ? details.fg_make_probability + "% (" + details.fg_distance + " yds)"
-                : "Out of range (" + details.fg_distance + " yds)";
-        document.getElementById("detail-punt").textContent =
-            details.punt_landing_yardline;
-
-        // --- Decision Context ---
-        renderDecisionContext(data);
-
-        renderSweep(data);
-
-        // Show
-        resultsContent.classList.add("active");
+    // why: the outcome tree
+    const rows = [];
+    const failSpot = 100 - yl;
+    const turnover = (s) => {
+      const r = Math.round(s);
+      return r === 50 ? "they take over at midfield" : r > 50 ? `they take over at their own ${100 - r}` : `they take over at your ${r}`;
+    };
+    rows.push(["go", "Converts", det.conversion_probability, sm.wp_if_convert, det.conversion_is_touchdown ? "touchdown" : null]);
+    rows.push(["go", `Stopped: ${turnover(failSpot)}`, 100 - det.conversion_probability, sm.wp_if_fail]);
+    if (wp.fg != null) {
+      rows.push(["fg", `Good from ${det.fg_distance}`, det.fg_make_probability, sm.wp_if_fg_make]);
+      rows.push(["fg", "Missed", 100 - det.fg_make_probability, sm.wp_if_fg_miss]);
+    }
+    rows.push(["punt", turnover(det.punt_opponent_yardline_100).replace(/^they/, "They"), 100, sm.wp_if_punt]);
+    const body = $("tree-body");
+    body.innerHTML = "";
+    let prev = null;
+    for (const [k, outcome, chance, after] of rows) {
+      const tr = document.createElement("tr");
+      if (k !== prev) tr.className = "first" + (k === rec ? " best-row" : "");
+      const c1 = document.createElement("td");
+      c1.className = "choice";
+      c1.textContent = k !== prev ? `${NAMES[k]} · ${whole(wp[k])}` : "";
+      const c2 = document.createElement("td"); c2.textContent = outcome;
+      const c3 = document.createElement("td"); c3.className = "n"; c3.textContent = k === "punt" ? "" : whole(chance);
+      const c4 = document.createElement("td"); c4.className = "n wp"; c4.textContent = whole(after);
+      tr.append(c1, c2, c3, c4);
+      body.appendChild(tr);
+      prev = k;
     }
 
-    function renderDecisionContext(data) {
-        // Only numbers the submodels actually produced; no rules of thumb.
-        const c = document.getElementById("decision-context");
-        const d = data.details, sd = data.submodel_details, wp = data.win_probabilities, rec = data.recommendation;
-        const pct = (v) => (v === null || v === undefined ? "–" : v.toFixed(1) + "%");
-        const row = (key, name, chance, a, b) => `
-            <div class="bd-row ${key === rec ? "is-rec" : ""}">
-                <div class="bd-name">${name}</div>
-                <div class="bd-cell" data-label="Chance">${chance}</div>
-                <div class="bd-cell" data-label="Win % if it works">${pct(a)}</div>
-                <div class="bd-cell" data-label="Win % if not">${b === null ? "–" : pct(b)}</div>
-            </div>`;
-        let html = '<div class="bd-row bd-head"><div>Choice</div><div>Chance it works</div><div>Win % if it works</div><div>Win % if not</div></div>';
-        html += row("go", "Go for it", pct(d.conversion_probability), sd.wp_if_convert, sd.wp_if_fail);
-        html += data.fg_available
-            ? row("fg", `Field goal <small>${d.fg_distance} yd</small>`, pct(d.fg_make_probability), sd.wp_if_fg_make, sd.wp_if_fg_miss)
-            : `<div class="bd-row off"><div class="bd-name">Field goal <small>${d.fg_distance} yd</small></div><div class="bd-cell" data-label="">Out of range</div></div>`;
-        html += row("punt", "Punt", `lands at ${d.punt_landing_yardline}`, sd.wp_if_punt, null);
-        c.innerHTML = html;
+    // sweep: own goal on the left, like the field
+    const strip = $("sweep-strip");
+    strip.innerHTML = "";
+    const sweep = (d.sweep || []).slice().sort((a, b) => b.yardline_100 - a.yardline_100);
+    for (const s of sweep) {
+      const c = document.createElement("div");
+      c.className = `seg-c seg-${s.recommendation}`;
+      c.style.flex = "1";
+      c.title = `${spotCaps(s.yardline_100)}: ${NAMES[s.recommendation]}`;
+      strip.appendChild(c);
     }
+    const here = document.createElement("div");
+    here.className = "here";
+    here.style.left = `${((100 - yl) / 99) * 100}%`;
+    strip.appendChild(here);
+  }
 
-    function renderSweep(data) {
-        const strip = document.getElementById("sweep-strip");
-        if (!data.sweep) return;
-        const here = data.inputs.yardline_100;
-        strip.innerHTML = data.sweep.map((s) => {
-            const label = s.yardline_100 === 50 ? "midfield" : s.yardline_100 < 50 ? `opp ${s.yardline_100}` : `own ${100 - s.yardline_100}`;
-            const name = { go: "Go for it", fg: "Field goal", punt: "Punt" }[s.recommendation];
-            return `<button type="button" class="cell ${s.recommendation} ${Math.abs(s.yardline_100 - here) <= 1 ? "here" : ""}" data-yl="${s.yardline_100}" title="${label}: ${name}" aria-label="${label}: ${name}"></button>`;
-        }).join("");
-        strip.querySelectorAll(".cell").forEach((b) => b.addEventListener("click", () => {
-            yardSlider.value = b.dataset.yl;
-            updateYardDisplay();
-            runAnalysis();
-        }));
-    }
+  // ---------- wiring ----------
+  function setYl(v) { state.yl = Math.max(1, Math.min(99, Math.round(v))); schedule(); }
 
-    function renderTransparency(data) {
-        const inputs = data.inputs;
-        const details = data.details;
-        const wp = data.win_probabilities;
-        const rec = data.recommendation;
+  function wire() {
+    const field = $("field");
+    const toYl = (ev) => {
+      const r = field.getBoundingClientRect();
+      const x = ((ev.clientX - r.left) / r.width) * 1200;
+      return 100 - (x - 100) / 10;
+    };
+    field.addEventListener("pointerdown", (ev) => {
+      field.setPointerCapture(ev.pointerId);
+      field.classList.add("dragging");
+      setYl(toYl(ev));
+    });
+    field.addEventListener("pointermove", (ev) => { if (field.hasPointerCapture(ev.pointerId)) setYl(toYl(ev)); });
+    field.addEventListener("pointerup", () => field.classList.remove("dragging"));
+    $("yardline").addEventListener("input", (e) => setYl(+e.target.value));
+    $("ytg-minus").addEventListener("click", () => { state.ytg = Math.max(1, Math.min(state.ytg, state.yl) - 1); schedule(); });
+    $("ytg-plus").addEventListener("click", () => { state.ytg = Math.min(15, state.ytg + 1); schedule(); });
+    document.querySelectorAll("input[name=possession], input[name=opp-result]").forEach((el) => el.addEventListener("change", () => schedule(0)));
+    $("adv").addEventListener("input", () => schedule(350));
+    $("adv").addEventListener("change", () => schedule(0));
+    window.__setSituation = (s) => {
+      if (s.yardline_100) state.yl = s.yardline_100;
+      if (s.yards_to_go) state.ytg = s.yards_to_go;
+      if (s.possession) document.getElementById(`poss-${s.possession}`).checked = true;
+      if (s.opp) document.getElementById(`opp-${s.opp}`).checked = true;
+      schedule(0);
+    };
+  }
 
-        // Scenario summary
-        let yardLabel;
-        if (inputs.yardline_100 === 50) {
-            yardLabel = "Midfield";
-        } else if (inputs.yardline_100 > 50) {
-            yardLabel = "own " + (100 - inputs.yardline_100);
-        } else {
-            yardLabel = "opponent's " + inputs.yardline_100;
-        }
-
-        const possLabels = { 1: "1st possession", 2: "2nd possession", 3: "sudden death" };
-        const possLabel = possLabels[inputs.possession_number] || "possession " + inputs.possession_number;
-
-        const scenarioEl = document.getElementById("transparency-scenario");
-        scenarioEl.innerHTML = `
-            <div class="scenario-grid">
-                <div class="scenario-item"><span class="scenario-key">Field position</span><span class="scenario-val">${yardLabel}</span></div>
-                <div class="scenario-item"><span class="scenario-key">Yards to go</span><span class="scenario-val">${inputs.yards_to_go}</span></div>
-                <div class="scenario-item"><span class="scenario-key">Score diff</span><span class="scenario-val">${inputs.score_differential >= 0 ? "+" : ""}${inputs.score_differential}</span></div>
-                <div class="scenario-item"><span class="scenario-key">OT phase</span><span class="scenario-val">${possLabel}</span></div>
-                <div class="scenario-item"><span class="scenario-key">Game type</span><span class="scenario-val">${inputs.is_playoffs ? "playoffs" : "regular season"}</span></div>
-                <div class="scenario-item"><span class="scenario-key">Method</span><span class="scenario-val">4 ML submodels</span></div>
-            </div>
-        `;
-
-        // Step-by-step for each option
-        const stepsEl = document.getElementById("transparency-steps");
-        const convProb = details.conversion_probability;
-        const fgProb = details.fg_make_probability;
-        const fgDist = details.fg_distance;
-        const puntLand = details.punt_landing_yardline;
-        const fgAvail = data.fg_available;
-
-        const oppStart = 100 - inputs.yardline_100;
-
-        let stepsHTML = `
-            <div class="step-option ${rec === 'go' ? 'is-rec' : ''}">
-                <div class="step-header">
-                    <span class="step-icon">\u26A1</span>
-                    <span class="step-title">Go For It</span>
-                    <span class="step-wp ${rec === 'go' ? 'best' : ''}">${wp.go !== null ? wp.go.toFixed(1) + "%" : "N/A"}</span>
-                </div>
-                <div class="step-logic">
-                    <div class="step-line"><span class="step-num">1</span> Conversion model estimates <strong>${convProb}%</strong> chance of converting (XGBoost + empirical blending)</div>
-                    <div class="step-line"><span class="step-num">2</span> If converted (${convProb}%): WP model evaluates state with 1st down at current spot</div>
-                    <div class="step-line"><span class="step-num">3</span> If failed (${(100 - convProb).toFixed(1)}%): WP model evaluates opponent getting ball at their ${oppStart > 50 ? "own " + (100 - oppStart) : oppStart}</div>
-                    <div class="step-line"><span class="step-num">4</span> Expected WP = weighted combination of both outcomes</div>
-                    <div class="step-result">Result: <strong>${wp.go !== null ? wp.go.toFixed(1) : "--"}%</strong> expected win probability</div>
-                </div>
-            </div>
-
-            <div class="step-option ${rec === 'punt' ? 'is-rec' : ''}">
-                <div class="step-header">
-                    <span class="step-icon">\uD83D\uDC4B</span>
-                    <span class="step-title">Punt</span>
-                    <span class="step-wp ${rec === 'punt' ? 'best' : ''}">${wp.punt !== null ? wp.punt.toFixed(1) + "%" : "N/A"}</span>
-                </div>
-                <div class="step-logic">
-                    <div class="step-line"><span class="step-num">1</span> Punt model (XGBoost) predicts opponent starts at <strong>${puntLand}</strong></div>
-                    <div class="step-line"><span class="step-num">2</span> WP model evaluates opponent's state from that field position</div>
-                    <div class="step-line"><span class="step-num">3</span> Team's WP = 1 minus opponent's WP from that state</div>
-                    <div class="step-result">Result: <strong>${wp.punt !== null ? wp.punt.toFixed(1) : "--"}%</strong> expected win probability</div>
-                </div>
-            </div>
-
-            <div class="step-option ${rec === 'fg' ? 'is-rec' : ''} ${!fgAvail ? 'unavailable' : ''}">
-                <div class="step-header">
-                    <span class="step-icon">\uD83C\uDFC8</span>
-                    <span class="step-title">Field Goal</span>
-                    <span class="step-wp ${rec === 'fg' ? 'best' : ''}">${wp.fg !== null ? wp.fg.toFixed(1) + "%" : "N/A"}</span>
-                </div>
-                <div class="step-logic">
-        `;
-
-        if (fgAvail) {
-            stepsHTML += `
-                    <div class="step-line"><span class="step-num">1</span> FG distance: <strong>${fgDist} yards</strong> (yardline + 17 for snap/endzone)</div>
-                    <div class="step-line"><span class="step-num">2</span> FG model (XGBoost) estimates <strong>${fgProb}%</strong> make probability</div>
-                    <div class="step-line"><span class="step-num">3</span> If made (${fgProb}%): WP model evaluates state with +3 pts, opponent receives kickoff</div>
-                    <div class="step-line"><span class="step-num">4</span> If missed (${(100 - fgProb).toFixed(1)}%): WP model evaluates opponent at their 20 or spot of kick</div>
-                    <div class="step-line"><span class="step-num">5</span> Expected WP = weighted combination of both outcomes</div>
-                    <div class="step-result">Result: <strong>${wp.fg.toFixed(1)}%</strong> expected win probability</div>
-            `;
-        } else {
-            stepsHTML += `
-                    <div class="step-line"><span class="step-num">!</span> Kick distance of <strong>${fgDist} yards</strong> exceeds NFL record (66 yds) — not evaluated</div>
-            `;
-        }
-
-        stepsHTML += `
-                </div>
-            </div>
-        `;
-
-        stepsEl.innerHTML = stepsHTML;
-    }
-    runAnalysis();
-});
+  drawField();
+  wire();
+  paintSituation();
+  analyze();
+})();

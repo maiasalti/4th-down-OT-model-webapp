@@ -1,16 +1,22 @@
 FROM python:3.11-slim
 
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
 WORKDIR /app
 
-# Install dependencies first (cached layer)
+# Dependencies first (cached layer). Runtime needs only Flask, numpy and the
+# CPU-only XGBoost wheel; see requirements-dev.txt for training tools.
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install -r requirements.txt
 
-# Copy application code and models
-COPY . .
+# Only what the server needs at runtime.
+COPY gunicorn.conf.py server.py decision_engine.py models.py ./
+COPY models ./models
+COPY static ./static
+COPY templates ./templates
 
-# Expose port
 EXPOSE 10000
-
-# Run with gunicorn
-CMD ["gunicorn", "server:app", "--bind", "0.0.0.0:10000", "--timeout", "180", "--workers", "1"]
+CMD ["gunicorn", "-c", "gunicorn.conf.py", "server:app"]
